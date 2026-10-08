@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CraveWallet</string>
+    <string name="channel_reminders">Recordatorios de cobro</string>
+    <string name="channel_reminders_desc">Avisos antes de cada cobro de tus suscripciones</string>
+</resources>
