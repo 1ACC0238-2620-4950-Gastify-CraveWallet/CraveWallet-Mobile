@@ -141,6 +141,6 @@ data class AppState(
 
     companion object {
         const val FREE_PLAN_LIMIT = 5
-        const val PREMIUM_PRICE = 9.90
+        const val PREMIUM_PRICE = 9.99
     }
 }

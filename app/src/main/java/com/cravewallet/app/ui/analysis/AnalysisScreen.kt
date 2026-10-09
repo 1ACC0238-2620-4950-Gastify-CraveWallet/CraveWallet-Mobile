@@ -292,7 +292,7 @@ private fun LockedAnalysis(state: AppState, actions: AppActions) {
                     CheckItem("Suscripciones sin límite (hoy: ${state.active.size} de 5)")
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("S/ 9.90 al mes, en soles. Cancela cuando quieras.", style = CwType.Caption, color = OnSurfaceVariant, textAlign = TextAlign.Center)
+                Text("S/ 9.99 al mes, en soles. Cancela cuando quieras.", style = CwType.Caption, color = OnSurfaceVariant, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
                 PrimaryButton("Ver Premium", onClick = { actions.openPremium(PremiumReason.ANALYSIS) }, icon = R.drawable.ic_workspace_premium, modifier = Modifier.fillMaxWidth())
                 CwTextButton("Ahora no", onClick = { actions.goTab(Routes.HOME) })
