@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08T23:23:57.664868-05:00",
+  "timezone": "America/Lima",
+  "branch": "feature/backend-integration",
+  "backendCommit": "2f36260dc1aa9b8e4ef71a7184847795e6cb6867",
+  "command": "gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain",
+  "liveBackend": "http://127.0.0.1:8080",
+  "backendEnvironment": "local H2/Flyway",
+  "build": "BUILD SUCCESSFUL",
+  "tests": 9,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "suites": [
+    {
+      "name": "com.cravewallet.app.data.BackendIntegrationTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "patchUsesJsonAndConflictsDoNotLookLikeSuccessfulWrites",
+        "concurrentUnauthorizedRequestsConsumeOneRefreshToken",
+        "realBackendRoundTrip",
+        "remotePortfolioNeverSeedsDemoOrInventsPastPayments",
+        "registrationPersistsOnlySessionAndLogoutClearsIt",
+        "unavailableConversionPreservesOriginalAmountsAndCachesNoInventedRate",
+        "unauthorizedRequestRefreshesAndRetriesWithTheNewToken",
+        "invalidRefreshClearsTheSession"
+      ]
+    },
+    {
+      "name": "com.cravewallet.app.ui.AppConnectionUiTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "loginAndLogoutUseTheServerRatherThanTheDemoProfile"
+      ]
+    }
+  ],
+  "lint": {
+    "errors": 0,
+    "warnings": 24
+  },
+  "apk": {
+    "filename": "CraveWallet-TB1-debug.apk",
+    "bytes": 15121075,
+    "sha256": "846ff042b7af151100793757e07930e531893d4903a47c082f6b9bbad7bf1ad2"
+  },
+  "scope": "REST client tested against the real local backend; Compose login/logout tested with Robolectric and MockWebServer. No physical Android device or emulator was connected."
+}

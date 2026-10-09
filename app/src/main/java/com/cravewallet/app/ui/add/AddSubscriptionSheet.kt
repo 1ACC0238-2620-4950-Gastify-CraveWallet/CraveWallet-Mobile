@@ -153,10 +153,12 @@ fun AddSubscriptionSheet(
     val today = LocalDate.now()
 
     fun requestClose() {
+        if(vm.busy.value) return
         if (dirty) confirmDiscard = true else onClose()
     }
 
     fun finish(withCalendar: Boolean) {
+        if(vm.busy.value) return
         val amount = draft.amountValue ?: return
         val next = draft.nextCharge ?: return
         val id = editing?.id ?: vm.newId()
@@ -175,20 +177,22 @@ fun AddSubscriptionSheet(
             payments = editing?.payments ?: emptyList(),
             createdAt = editing?.createdAt ?: LocalDateTime.now(),
         )
-        val created = vm.save(sub, lead, withCalendar)
-        onClose()
-        val name = sub.name
-        when {
-            editing != null -> actions.snack("Cambios guardados.")
-            created -> {
-                val at = ReminderPlanner.reminderTime(next, lead, state.reminders)
-                actions.snack("$name agregado. Te avisaremos el ${Fmt.dayMonth(at.toLocalDate())}.", "Deshacer") { vm.undoAdd(id) }
+        vm.saveAsync(sub, lead, withCalendar) { created ->
+            onClose()
+            val name = sub.name
+            when {
+                editing != null -> actions.snack("Cambios guardados.")
+                state.backendMode -> actions.snack("$name guardado en tu cuenta.")
+                created -> {
+                    val at = ReminderPlanner.reminderTime(next, lead, state.reminders)
+                    actions.snack("$name agregado. Te avisaremos el ${Fmt.dayMonth(at.toLocalDate())}.", "Deshacer") { vm.undoAdd(id) }
+                }
+                withCalendar || calendar -> actions.snack(
+                    "$name agregado. Sin calendario: te avisaremos por notificación.",
+                    "Ajustes",
+                ) { actions.nav.navigate(Routes.REMINDERS) }
+                else -> actions.snack("$name agregado.", "Deshacer") { vm.undoAdd(id) }
             }
-            withCalendar || calendar -> actions.snack(
-                "$name agregado. Sin calendario: te avisaremos por notificación.",
-                "Ajustes",
-            ) { actions.nav.navigate(Routes.REMINDERS) }
-            else -> actions.snack("$name agregado.", "Deshacer") { vm.undoAdd(id) }
         }
     }
 
@@ -237,6 +241,7 @@ fun AddSubscriptionSheet(
             2 -> StepDetails(
                 draft = draft,
                 state = state,
+                lockIdentity = editing != null && state.backendMode,
                 showErrors = showErrors,
                 onChange = { draft = it },
                 onDiscard = ::requestClose,
@@ -359,6 +364,7 @@ private fun ServiceTile(svc: KnownService, modifier: Modifier, onClick: () -> Un
 private fun ColumnScope.StepDetails(
     draft: Draft,
     state: AppState,
+    lockIdentity: Boolean,
     showErrors: Boolean,
     onChange: (Draft) -> Unit,
     onDiscard: () -> Unit,
@@ -376,7 +382,7 @@ private fun ColumnScope.StepDetails(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            "Completa los datos. Los campos con * son obligatorios.",
+            if(lockIdentity) "Puedes editar monto, categoría y próximo cobro. Nombre, moneda y frecuencia se conservan." else "Completa los datos. Los campos con * son obligatorios.",
             style = CwType.Body,
             color = OnSurfaceVariant,
             modifier = Modifier.padding(top = 12.dp),
@@ -393,7 +399,7 @@ private fun ColumnScope.StepDetails(
         CwTextField(
             label = "Nombre del servicio *",
             value = draft.name,
-            onValueChange = { onChange(draft.copy(name = it)) },
+            onValueChange = { if(!lockIdentity) onChange(draft.copy(name = it)) },
             placeholder = "Ej. Notion Plus",
             error = errors["name"],
             maxLength = 40,
@@ -412,14 +418,14 @@ private fun ColumnScope.StepDetails(
             CwDropdownField(
                 label = "Moneda",
                 selected = draft.currency,
-                choices = Currency.entries.map { Choice(it, it.code, it.label) },
+                choices = (if(lockIdentity) listOf(draft.currency) else if(state.backendMode) listOf(Currency.PEN,Currency.USD) else Currency.entries).map { Choice(it, it.code, it.label) },
                 onSelect = { onChange(draft.copy(currency = it)) },
                 modifier = Modifier.weight(1f),
                 menuWidth = 232.dp,
             )
         }
         val amount = draft.amountValue
-        if (draft.currency != Currency.PEN && amount != null && amount > 0) {
+        if (draft.currency != Currency.PEN && amount != null && amount > 0 && state.rates.rate(draft.currency).isFinite()) {
             val monthly = amount * state.rates.rate(draft.currency) / draft.frequency.months
             InfoBanner(
                 icon = R.drawable.ic_currency_exchange,
@@ -432,7 +438,7 @@ private fun ColumnScope.StepDetails(
         CwDropdownField(
             label = "Frecuencia",
             selected = draft.frequency,
-            choices = Frequency.entries.map { Choice(it, it.label) },
+            choices = (if(lockIdentity) listOf(draft.frequency) else if(state.backendMode) listOf(Frequency.MENSUAL,Frequency.ANUAL) else Frequency.entries).map { Choice(it, it.label) },
             onSelect = { onChange(draft.copy(frequency = it)) },
         )
         CwPickerField(

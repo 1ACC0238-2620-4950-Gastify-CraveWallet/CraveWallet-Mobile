@@ -20,13 +20,13 @@ object Fmt {
     fun number(value: Double): String = String.format(Locale.US, "%,.2f", value)
 
     /** S/ 433.22 */
-    fun pen(value: Double): String = "S/ ${number(value)}"
+    fun pen(value: Double): String = if(value.isFinite()) "S/ ${number(value)}" else "Conversión no disponible"
 
     /** USD 39.99 */
     fun money(value: Double, currency: Currency): String =
         if (currency == Currency.PEN) pen(value) else "${currency.code} ${number(value)}"
 
-    fun rate(value: Double): String = String.format(Locale.US, "%.2f", value)
+    fun rate(value: Double): String = if(value.isFinite()) String.format(Locale.US, "%.2f", value) else "No disponible"
 
     fun monthShort(month: Int): String = monthsShort[month - 1]
     fun monthShortCap(month: Int): String = monthShort(month).replaceFirstChar { it.uppercase() }

@@ -2,6 +2,7 @@ package com.cravewallet.app.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,6 +77,7 @@ object Routes {
     const val DETAIL = "detail/{id}"
     const val CATEGORY = "category/{name}"
     const val REMINDERS = "reminders"
+    const val DELIVERY = "delivery"
 
     fun expenses(focusSearch: Boolean = false) = "expenses?focus=$focusSearch"
     fun detail(id: String) = "detail/$id"
@@ -86,6 +88,7 @@ private enum class Tab(val label: String, val route: String, @param:DrawableRes 
     INICIO("Inicio", Routes.HOME, R.drawable.ic_home, R.drawable.ic_home_fill),
     GASTOS("Gastos", Routes.EXPENSES, R.drawable.ic_receipt_long, R.drawable.ic_receipt_long_fill),
     ANALISIS("Análisis", Routes.ANALYSIS, R.drawable.ic_bar_chart, R.drawable.ic_bar_chart_fill),
+    DELIVERY("Delivery", Routes.DELIVERY, R.drawable.ic_moped, R.drawable.ic_moped),
     PERFIL("Perfil", Routes.PROFILE, R.drawable.ic_person, R.drawable.ic_person_fill);
 
     companion object {
@@ -93,6 +96,7 @@ private enum class Tab(val label: String, val route: String, @param:DrawableRes 
             route == null -> INICIO
             route.startsWith("expenses") || route.startsWith("detail") -> GASTOS
             route.startsWith("analysis") || route.startsWith("category") -> ANALISIS
+            route.startsWith("delivery") -> DELIVERY
             route.startsWith("profile") || route.startsWith("reminders") -> PERFIL
             else -> INICIO
         }
@@ -136,10 +140,15 @@ class AppActions(
 
 @Composable
 fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsumedDeepLink: () -> Unit = {}) {
+    val access by vm.access.collectAsStateWithLifecycle()
+    if(access == com.cravewallet.app.data.AccessMode.SIGNED_OUT) { AuthScreen(vm); return }
     val nav = rememberNavController()
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val apiError by vm.error.collectAsStateWithLifecycle()
+    val apiBusy by vm.busy.collectAsStateWithLifecycle()
+    LaunchedEffect(apiError) { apiError?.let { snackbar.showSnackbar(it); vm.clearError() } }
     var addRequest by remember { mutableStateOf<AddRequest?>(null) }
     var premiumReason by remember { mutableStateOf<PremiumReason?>(null) }
 
@@ -152,7 +161,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
                 if (vm.canAddMore) addRequest = AddRequest(editId = null) else premiumReason = PremiumReason.LIMIT
             },
             openEdit = { id -> addRequest = AddRequest(editId = id) },
-            openPremium = { premiumReason = it },
+            openPremium = { if(vm.connected) scope.launch {snackbar.showSnackbar("Premium todavía no está disponible.")} else premiumReason = it },
         )
     }
 
@@ -200,7 +209,12 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
         },
         bottomBar = { BottomNav(currentTab, state) { tab -> actions.goTab(if (tab == Tab.GASTOS) Routes.expenses() else tab.route) } },
     ) { padding ->
-        NavHost(nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
+        androidx.compose.foundation.layout.Column {
+        if(apiBusy) androidx.compose.material3.LinearProgressIndicator(modifier=Modifier.fillMaxWidth())
+        if(state.backendMode && !state.conversionAvailable) Text("Conversión no disponible. Los importes originales se conservan.",modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
+        if(state.backendMode && state.rateStale) Text("Se utiliza la última cotización disponible. Puedes actualizarla desde Perfil.",modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
+        if(!state.backendMode) Text("Demostración · datos locales",modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
+        NavHost(nav, startDestination = Routes.HOME, modifier = Modifier.weight(1f).padding(padding)) {
             composable(Routes.HOME) { HomeScreen(state, actions) }
             composable(
                 Routes.EXPENSES,
@@ -218,6 +232,8 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
                 if (category != null) CategoryDetailScreen(category, state, actions)
             }
             composable(Routes.REMINDERS) { RemindersScreen(state, vm, actions) }
+            composable(Routes.DELIVERY) { if(vm.connected) DeliveryScreen(vm) else Text("Inicia sesión para registrar gastos en el servidor.",modifier=Modifier.padding(16.dp)) }
+        }
         }
     }
 

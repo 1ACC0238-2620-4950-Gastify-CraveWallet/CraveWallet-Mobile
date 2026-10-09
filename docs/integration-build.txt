@@ -1,0 +1,4 @@
+> Task :app:assembleDebug
+> Task :app:testDebugUnitTest
+> Task :app:lintDebug
+BUILD SUCCESSFUL in 1m 56s

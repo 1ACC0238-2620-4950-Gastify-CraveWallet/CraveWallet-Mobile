@@ -114,20 +114,20 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                     "Moneda de referencia",
                     subtitle = "Soles (PEN)",
                     icon = R.drawable.ic_currency_exchange,
-                    onClick = { actions.snack("Todos los montos se muestran en soles. Los cobros en dólares o euros se convierten con el tipo de cambio del día.") },
+                    onClick = { actions.snack(if(state.backendMode) "La moneda de referencia es PEN. Se admiten suscripciones en PEN y USD." else "Todos los montos se muestran en soles. Los cobros en dólares o euros se convierten con el tipo de cambio del día.") },
                 )
                 RowDivider()
                 ListRow(
                     "Tipo de cambio",
                     subtitle = "Automático · S/ ${Fmt.rate(state.rates.usd)} ${Fmt.relativeDateTime(state.rates.updatedAt)}",
                     icon = R.drawable.ic_sync,
-                    onClick = { dialog = ProfileDialog.RATE },
+                    onClick = { if(state.backendMode) vm.refreshRates() else dialog = ProfileDialog.RATE },
                 )
             }
 
             GroupLabel("Cuenta")
             CwCard(Modifier.fillMaxWidth()) {
-                ListRow("Datos de la cuenta", subtitle = "Nombre y correo", icon = R.drawable.ic_person, onClick = { dialog = ProfileDialog.ACCOUNT })
+                ListRow("Datos de la cuenta", subtitle = "Nombre y correo", icon = R.drawable.ic_person, onClick = { if(state.backendMode) actions.snack("La edición del perfil todavía no está disponible.") else dialog = ProfileDialog.ACCOUNT })
                 RowDivider()
                 val renewal = LocalDate.now().withDayOfMonth(1).plusMonths(1)
                 ListRow(
@@ -143,6 +143,15 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                 ListRow("Ayuda y privacidad", subtitle = "No pedimos acceso a tu banco", icon = R.drawable.ic_shield, onClick = { dialog = ProfileDialog.PRIVACY })
             }
 
+            if(state.backendMode) {
+                GroupLabel("Servidor")
+                CwCard(Modifier.fillMaxWidth()) {
+                    ListRow("Actualizar datos",subtitle="Consultar tu cuenta en el servidor",icon=R.drawable.ic_sync,onClick=vm::refresh)
+                    RowDivider()
+                    ListRow("Cerrar sesión",subtitle=state.profile.email,icon=R.drawable.ic_logout,onClick=vm::logout)
+                }
+                state.rateAttribution?.let { Text("Tipo de cambio: $it",style=CwType.Caption,modifier=Modifier.padding(vertical=8.dp)) }
+            } else {
             GroupLabel("Demostración")
             CwCard(Modifier.fillMaxWidth()) {
                 ListRow(
@@ -158,6 +167,8 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                     icon = R.drawable.ic_logout,
                     onClick = { dialog = ProfileDialog.EMPTY },
                 )
+            }
+            TextButtonForLogout(vm)
             }
             Text(
                 "CraveWallet 1.0 · Prototipo académico",
@@ -182,7 +193,7 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
         ProfileDialog.PRIVACY -> InfoDialog(
             "Ayuda y privacidad",
             "CraveWallet no se conecta a tu banco ni a tus tarjetas: tú registras cada suscripción. " +
-                "Los datos se guardan solo en este teléfono. El permiso de calendario se usa únicamente para crear " +
+                (if(state.backendMode) "Tus suscripciones y gastos se guardan en el servidor asociado a tu cuenta. Las preferencias de recordatorios se guardan en el teléfono. " else "Los datos de demostración se guardan solo en este teléfono. ") + "El permiso de calendario se usa únicamente para crear " +
                 "un evento antes de cada cobro, y las notificaciones solo para avisarte de tus cobros.",
         ) { dialog = null }
         ProfileDialog.RESET -> ConfirmDialog(
@@ -293,4 +304,9 @@ fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) {
         text = { Text(body, style = CwType.Body, color = OnSurface) },
         confirmButton = { CwTextButton("Entendido", color = Primary, onClick = onDismiss) },
     )
+}
+
+@Composable
+private fun TextButtonForLogout(vm: AppViewModel) {
+    CwTextButton("Salir de la demostración",onClick=vm::logout)
 }

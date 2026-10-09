@@ -92,6 +92,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                         )
                     }
                     DropdownMenuItem(
+                        enabled = !state.backendMode,
                         text = { Text("Eliminar del registro", style = CwType.Body, color = Error) },
                         leadingIcon = { CwIcon(R.drawable.ic_delete, size = 20.dp, tint = Error) },
                         onClick = { menu = false; confirmDelete = true },
@@ -222,7 +223,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
             Spacer(Modifier.height(20.dp))
             SecondaryButton("Editar", onClick = { actions.openEdit(sub.id) }, icon = R.drawable.ic_edit, height = 48.dp, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            if (sub.cancelled) {
+            if (sub.cancelled && !state.backendMode) {
                 PrimaryButton(
                     "Reactivar suscripción",
                     onClick = {
@@ -234,7 +235,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-            } else {
+            } else if(!sub.cancelled) {
                 CwTextButton(
                     "Cancelar suscripción",
                     onClick = { confirmCancel = true },
@@ -256,9 +257,11 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
             dismiss = "Volver",
             onConfirm = {
                 confirmCancel = false
-                vm.setCancelled(sub.id, true)
-                actions.snack("${sub.name} cancelada. Ahorras ${Fmt.pen(state.monthlyPen(sub))} al mes.", "Deshacer") {
+                vm.cancel(sub.id) {
+                if(state.backendMode) actions.snack("${sub.name} cancelada en tu cuenta.")
+                else actions.snack("${sub.name} cancelada. Ahorras ${Fmt.pen(state.monthlyPen(sub))} al mes.", "Deshacer") {
                     vm.setCancelled(sub.id, false)
+                }
                 }
             },
             onDismiss = { confirmCancel = false },

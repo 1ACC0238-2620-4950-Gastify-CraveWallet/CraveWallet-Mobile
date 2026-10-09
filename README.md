@@ -6,6 +6,17 @@ cuánto pagas al mes, qué se cobra pronto, qué no estás usando y cuánto subi
 Implementa los wireframes y el Design System del Figma
 [Mobile UX/UI](https://www.figma.com/design/lIN0zLBZ4E0PmQudY5JOip/Mobile-UX-UI).
 
+## Conexión con el backend
+
+Esta rama agrega registro, login, sesión JWT, suscripciones y gastos de Delivery
+contra `CraveWallet-Backend`. Al abrirla, puedes **iniciar sesión** o elegir
+**Ver demostración sin conexión**. La demostración está identificada en pantalla.
+
+En un emulador utiliza `http://10.0.2.2:8080`; para un teléfono USB utiliza
+`adb reverse tcp:8080 tcp:8080` y `http://127.0.0.1:8080`.
+El backend debe estar encendido. Consulta la [guía de integración](docs/backend-integration.md)
+para los contratos, pruebas y límites de este avance.
+
 ## Tecnología
 
 | | |
@@ -14,9 +25,9 @@ Implementa los wireframes y el Design System del Figma
 | UI | Jetpack Compose + Material 3 (tema propio con los tokens del Design System) |
 | Navegación | Navigation Compose |
 | Estado | `ViewModel` + `StateFlow` |
-| Persistencia | JSON en `SharedPreferences` (los datos viven solo en el teléfono) |
+| Persistencia | Backend REST para suscripciones y Delivery; preferencias, notas y datos de demostración en SharedPreferences |
 | Recordatorios | WorkManager (notificaciones push) y `CalendarContract` (evento en el calendario) |
-| Tipo de cambio | Se descarga al abrir la app desde `open.er-api.com` (sin clave); sin conexión se usa el último guardado |
+| Tipo de cambio | En sesión conectada proviene del backend, con fecha y atribución. La demostración utiliza la consulta pública original |
 | Fuentes / íconos | Poppins + Inter · Material Symbols Rounded (los mismos del Figma) |
 
 - `minSdk` 26 (Android 8.0) · `targetSdk`/`compileSdk` 37
@@ -63,6 +74,8 @@ app/src/main/java/com/cravewallet/app/
 ```
 
 ## Modo demostración
+
+Se abre desde la pantalla de acceso; Perfil permite salir para iniciar sesión.
 
 En **Perfil › Demostración**:
 

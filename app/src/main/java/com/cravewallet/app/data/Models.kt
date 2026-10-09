@@ -113,6 +113,11 @@ data class AppState(
     val subscriptions: List<Subscription>,
     val reminders: ReminderSettings,
     val rates: ExchangeRates,
+    val backendMode: Boolean = false,
+    val serverMonthlyTotal: Double? = null,
+    val conversionAvailable: Boolean = true,
+    val rateAttribution: String? = null,
+    val rateStale: Boolean = false,
 ) {
     val active: List<Subscription> get() = subscriptions.filter { it.isActive }
 
@@ -121,7 +126,7 @@ data class AppState(
     /** Costo mensual equivalente en soles (anual / 12, trimestral / 3). */
     fun monthlyPen(sub: Subscription): Double = pen(sub) / sub.frequency.months
 
-    val monthlyTotal: Double get() = active.sumOf { monthlyPen(it) }
+    val monthlyTotal: Double get() = if (backendMode) serverMonthlyTotal ?: Double.NaN else active.sumOf { monthlyPen(it) }
 
     fun status(sub: Subscription, today: LocalDate = LocalDate.now()): SubStatus {
         if (sub.cancelled) return SubStatus.CANCELADA
