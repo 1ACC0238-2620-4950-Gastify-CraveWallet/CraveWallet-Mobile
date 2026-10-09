@@ -13,7 +13,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-        val apiUrl = providers.gradleProperty("API_BASE_URL").getOrElse("http://10.0.2.2:8080")
+        val apiUrl = providers.gradleProperty("API_BASE_URL").getOrElse("https://cravewallet-api.onrender.com")
         buildConfigField("String", "API_BASE_URL", "\"${apiUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
 
@@ -34,6 +34,13 @@ android {
 }
 
 android.testOptions.unitTests.isIncludeAndroidResources = true
+
+// Changing the target server must rerun the real integration test.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    val liveBackend = providers.environmentVariable("CRAVE_LIVE_BACKEND").orElse("")
+    inputs.property("liveBackend", liveBackend)
+    environment("CRAVE_LIVE_BACKEND", liveBackend.get())
+}
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

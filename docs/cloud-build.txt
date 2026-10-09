@@ -1,0 +1,2 @@
+> Task :app:assembleDebug UP-TO-DATE
+> Task :app:testDebugUnitTest

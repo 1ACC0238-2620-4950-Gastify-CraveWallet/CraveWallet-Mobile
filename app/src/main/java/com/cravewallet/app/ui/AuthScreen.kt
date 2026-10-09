@@ -30,6 +30,7 @@ fun AuthScreen(vm: AppViewModel) {
             OutlinedTextField(value=password,onValueChange={password=it},label={Text("Contraseña")},singleLine=true,visualTransformation=PasswordVisualTransformation(),enabled=!busy,modifier=Modifier.fillMaxWidth())
             if(register) Text("Usa al menos 8 caracteres, con letras y números.",style=CwType.Caption)
             if(BuildConfig.DEBUG) OutlinedTextField(value=url,onValueChange={url=it},label={Text("Servidor de pruebas")},singleLine=true,enabled=!busy,modifier=Modifier.fillMaxWidth())
+            if(busy) Text("Conectando con tu cuenta. El primer acceso puede tardar unos minutos.",style=CwType.Caption,color=OnSurfaceVariant)
             error?.let { Text(it,color=Error) }
             Button(onClick={vm.authenticate(email,password,register,url)},enabled=!busy && email.isNotBlank() && password.isNotBlank(),modifier=Modifier.fillMaxWidth()) {
                 Text(if(busy) "Conectando…" else if(register) "Crear cuenta" else "Ingresar")

@@ -12,9 +12,12 @@ Esta rama agrega registro, login, sesión JWT, suscripciones y gastos de Deliver
 contra `CraveWallet-Backend`. Al abrirla, puedes **iniciar sesión** o elegir
 **Ver demostración sin conexión**. La demostración está identificada en pantalla.
 
-En un emulador utiliza `http://10.0.2.2:8080`; para un teléfono USB utiliza
-`adb reverse tcp:8080 tcp:8080` y `http://127.0.0.1:8080`.
-El backend debe estar encendido. Consulta la [guía de integración](docs/backend-integration.md)
+La dirección predeterminada es **https://cravewallet-api.onrender.com**, con
+PostgreSQL alojado en Render. Puedes usarla con Internet sin encender la PC
+del equipo. El servidor gratuito puede tardar unos minutos en despertar.
+
+Para desarrollo local, cambia el servidor a `http://10.0.2.2:8080` en el emulador;
+por USB utiliza `adb reverse tcp:8080 tcp:8080` y `http://127.0.0.1:8080`. Consulta la [guía de integración](docs/backend-integration.md)
 para los contratos, pruebas y límites de este avance.
 
 ## Tecnología

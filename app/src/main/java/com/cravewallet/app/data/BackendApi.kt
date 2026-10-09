@@ -20,8 +20,8 @@ class ApiException(val status: Int, message: String) : Exception(message)
 class BackendApi(context: Context) {
     private val prefs = context.getSharedPreferences("backend_session", Context.MODE_PRIVATE)
     private val refreshLock = Mutex()
-    private val client = OkHttpClient.Builder().connectTimeout(5,TimeUnit.SECONDS)
-        .readTimeout(10,TimeUnit.SECONDS).callTimeout(20,TimeUnit.SECONDS)
+    private val client = OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS)
+        .readTimeout(170,TimeUnit.SECONDS).callTimeout(180,TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).build()
     val hasSession get() = prefs.getString("access", null) != null
     val baseUrl get() = prefs.getString("url", null) ?: BuildConfig.API_BASE_URL

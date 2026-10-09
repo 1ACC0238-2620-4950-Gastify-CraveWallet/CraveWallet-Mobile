@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-09T00:06:25.045028-05:00",
+  "apiUrl": "https://cravewallet-api.onrender.com",
+  "backendCommit": "67ede2ae8c2b9cb02bb8151f5a163344a7ef3d4f",
+  "environment": "Render prod / PostgreSQL 17",
+  "command": "gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain",
+  "suites": [
+    {
+      "name": "com.cravewallet.app.data.BackendIntegrationTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.cravewallet.app.ui.AppConnectionUiTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "lintErrors": 0,
+  "apk": {
+    "filename": "CraveWallet-TB1-cloud-debug.apk",
+    "bytes": 15121075,
+    "sha256": "5e2ab68b5056adc4a08db0c4cc4ffc2e2e90d5bff6b912fc95bc9b87767c0ec3"
+  },
+  "scope": "REST client tested against public HTTPS backend; UI login/logout with Robolectric and MockWebServer. No physical Android device or emulator verified in this run."
+}
