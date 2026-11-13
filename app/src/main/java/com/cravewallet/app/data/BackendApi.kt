@@ -83,12 +83,18 @@ class BackendApi(context: Context) {
             val status = response.code
             val text = response.body?.string().orEmpty()
             if (status !in 200..299) {
+                val detail = runCatching { JSONObject(text).optString("detail", "") }.getOrNull()
+                    ?.takeUnless { it.isBlank() || it == "null" }
                 val message = when (status) {
                     401 -> "La sesión o las credenciales no son válidas."
-                    404 -> "No se encontró el registro en tu cuenta."
-                    503 -> "El tipo de cambio no está disponible. Intenta actualizarlo más tarde."
-                    else -> runCatching { JSONObject(text).optString("detail") }.getOrNull()
-                        ?.takeIf { it.isNotBlank() } ?: "No se pudo completar la operación ($status)."
+                    404 -> if (path == "/api/v1/premium/checkout") "El servidor de esta sesión aún no ofrece el pago de Premium."
+                        else "No se encontró el registro en tu cuenta."
+                    503 -> if (path.startsWith("/api/v1/premium/")) {
+                        detail ?: "El servidor no pudo completar la operación de Premium (503). Inténtalo nuevamente."
+                    } else {
+                        "El tipo de cambio no está disponible. Intenta actualizarlo más tarde."
+                    }
+                    else -> detail ?: "No se pudo completar la operación ($status)."
                 }
                 throw ApiException(status, message)
             }
