@@ -22,6 +22,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +57,6 @@ import com.cravewallet.app.ui.components.LinkText
 import com.cravewallet.app.ui.components.PremiumBadge
 import com.cravewallet.app.ui.components.PrimaryButton
 import com.cravewallet.app.ui.components.SectionHeader
-import com.cravewallet.app.ui.premium.PremiumReason
 import com.cravewallet.app.ui.theme.CwType
 import com.cravewallet.app.ui.theme.Error
 import com.cravewallet.app.ui.theme.OnPrimaryContainer
@@ -73,13 +73,13 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 @Composable
-fun AnalysisScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
+fun AnalysisScreen(state: AppState, vm: AppViewModel, actions: AppActions, onViewPremium: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         CwTopBar("Análisis", actions = {
             if (state.profile.premium) PremiumBadge(Modifier.padding(end = 12.dp))
         })
         when {
-            !state.profile.premium -> LockedAnalysis(state, actions)
+            !state.profile.premium -> LockedAnalysis(state, vm, actions, onViewPremium)
             state.subscriptions.isEmpty() -> EmptyAnalysis(actions)
             else -> AnalysisContent(state, actions, vm)
         }
@@ -266,7 +266,9 @@ private fun EmptyAnalysis(actions: AppActions) {
 
 /** N5 · Análisis solo para Premium: vista previa desenfocada + tarjeta con beneficios. */
 @Composable
-private fun LockedAnalysis(state: AppState, actions: AppActions) {
+private fun LockedAnalysis(state: AppState, vm: AppViewModel, actions: AppActions, onViewPremium: () -> Unit) {
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val pending = state.premiumStatus?.pending == true
     Box(Modifier.fillMaxSize().padding(16.dp)) {
         // Vista previa desenfocada (en Android < 12 se atenúa en lugar de desenfocar)
         val preview = Modifier
@@ -292,9 +294,18 @@ private fun LockedAnalysis(state: AppState, actions: AppActions) {
                     CheckItem("Suscripciones sin límite (hoy: ${state.active.size} de 5)")
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("S/ 9.90 al mes, en soles. Cancela cuando quieras.", style = CwType.Caption, color = OnSurfaceVariant, textAlign = TextAlign.Center)
+                Text(
+                    if (pending) "Estamos esperando la confirmación de Mercado Pago."
+                    else "${Fmt.pen(state.premiumPrice)} al mes. Cancela cuando quieras.",
+                    style = CwType.Caption, color = OnSurfaceVariant, textAlign = TextAlign.Center,
+                )
                 Spacer(Modifier.height(16.dp))
-                PrimaryButton("Ver Premium", onClick = { actions.openPremium(PremiumReason.ANALYSIS) }, icon = R.drawable.ic_workspace_premium, modifier = Modifier.fillMaxWidth())
+                PrimaryButton(
+                    if (pending) "Continuar pago" else "Ver Premium",
+                    onClick = onViewPremium,
+                    icon = R.drawable.ic_workspace_premium, modifier = Modifier.fillMaxWidth(), enabled = !busy,
+                )
+                if (pending) CwTextButton("Actualizar estado", onClick = { if (!busy) vm.refreshPremium() })
                 CwTextButton("Ahora no", onClick = { actions.goTab(Routes.HOME) })
             }
         }
