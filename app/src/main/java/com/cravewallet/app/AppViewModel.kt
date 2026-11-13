@@ -185,7 +185,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         ReminderScheduler.syncAll(context, repo.current)
     }
 
-    fun setPremium(premium: Boolean) { if(connected) _error.value="Premium todavía no está disponible." else repo.setPremium(premium) }
+    fun activateDemoPremium() { if (access.value == AccessMode.DEMO) repo.setPremium(true) }
+
+    fun startPremiumCheckout(openCheckout: (String) -> Unit) {
+        if (!connected || _busy.value) return
+        operation { if (connected) openCheckout(repo.premiumCheckout()) }
+    }
+
+    fun refreshPremium() = operation { if (connected) repo.refreshPremium() }
+
+    fun cancelPremium(onSuccess: () -> Unit) = operation {
+        when (access.value) {
+            AccessMode.CONNECTED -> repo.cancelPremium()
+            AccessMode.DEMO -> repo.setPremium(false)
+            AccessMode.SIGNED_OUT -> return@operation
+        }
+        onSuccess()
+    }
 
     fun setProfile(profile: Profile) { if(connected) _error.value="La edición de nombre y correo aún no está disponible." else repo.setProfile(profile) }
 
