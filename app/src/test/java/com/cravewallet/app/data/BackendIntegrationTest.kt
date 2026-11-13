@@ -96,6 +96,7 @@ class BackendIntegrationTest {
             override fun dispatch(request:RecordedRequest):MockResponse = when {
                 request.path=="/api/v1/auth/login" -> response(auth())
                 request.path=="/api/v1/users/me" -> response("""{"email":"demo@example.com"}""")
+                request.path=="/api/v1/premium/status" -> response("""{"premium":false,"membershipStatus":null,"periodEndsAt":null,"cancelAtPeriodEnd":false,"monthlyPrice":9.99}""")
                 request.path!!.contains("status=ACTIVE") -> response("""{"items":[{"id":"remote-id","name":"Cuenta real","amount":12,"currency":"PEN","category":"MUSICA","billingCycle":"MONTHLY","nextBillingDate":"2026-01-01","status":"ACTIVE"}],"monthlyTotalPen":12,"conversionAvailable":true,"exchangeRate":null}""")
                 request.path!!.contains("status=CANCELLED") -> response("""{"items":[]}""")
                 else -> response("""{"rate":3.5,"updatedAt":"2026-10-08T12:00:00Z","attributionUrl":"https://www.exchangerate-api.com"}""")
@@ -114,6 +115,7 @@ class BackendIntegrationTest {
             override fun dispatch(request:RecordedRequest):MockResponse = when {
                 request.path=="/api/v1/auth/login" -> response(auth())
                 request.path=="/api/v1/users/me" -> response("""{"email":"demo@example.com"}""")
+                request.path=="/api/v1/premium/status" -> response("{}",404)
                 request.path!!.contains("status=ACTIVE") -> response("""{"items":[{"id":"usd-id","name":"Servicio USD","amount":9.99,"currency":"USD","category":"MUSICA","billingCycle":"MONTHLY","nextBillingDate":"2026-11-01","status":"ACTIVE"}],"monthlyTotalPen":null,"conversionAvailable":false,"exchangeRate":null}""")
                 request.path!!.contains("status=CANCELLED") -> response("""{"items":[]}""")
                 else -> response("{}",503)
@@ -126,6 +128,45 @@ class BackendIntegrationTest {
         val restarted=Repository(context)
         assertTrue(restarted.current.rates.usd.isNaN())
         assertEquals("usd-id",restarted.current.subscriptions.single().id)
+    }
+
+    @Test fun premiumCheckoutKeepsAccessLockedUntilTheServerConfirmsPayment() = runBlocking {
+        server.enqueue(response(auth()))
+        api.authenticate("demo@example.com", "Example123", false)
+        server.takeRequest()
+        val repo = Repository(context)
+        val checkoutUrl = "https://www.mercadopago.com.pe/subscriptions/checkout?preapproval_id=test"
+        val configurationError = "Falta configurar el acceso, webhook o retorno HTTPS de Mercado Pago."
+        server.enqueue(response(JSONObject().put("detail", configurationError).toString(), 503))
+        try {
+            repo.premiumCheckout()
+            fail("Expected 503")
+        } catch (e: ApiException) {
+            assertEquals(503, e.status)
+            assertEquals(configurationError, e.message)
+        }
+        server.takeRequest()
+        server.enqueue(response("""{"checkoutUrl":"$checkoutUrl","status":"PENDING"}"""))
+
+        assertEquals(checkoutUrl, repo.premiumCheckout())
+        val checkout = server.takeRequest()
+        assertEquals("POST", checkout.method)
+        assertEquals("/api/v1/premium/checkout", checkout.path)
+        assertEquals("Bearer access-1", checkout.getHeader("Authorization"))
+        assertEquals(0L, checkout.bodySize)
+        assertFalse(repo.current.profile.premium)
+
+        server.enqueue(response("""{"premium":false,"membershipStatus":"PENDING","periodEndsAt":null,"cancelAtPeriodEnd":false,"monthlyPrice":9.99}"""))
+        repo.refreshPremium()
+        assertEquals("/api/v1/premium/status", server.takeRequest().path)
+        assertFalse(repo.current.profile.premium)
+        assertTrue(repo.current.premiumStatus?.pending == true)
+
+        server.enqueue(response("""{"premium":true,"membershipStatus":"ACTIVE","periodEndsAt":"2026-12-13T20:00:00Z","cancelAtPeriodEnd":false,"monthlyPrice":9.99}"""))
+        repo.refreshPremium()
+        assertTrue(repo.current.profile.premium)
+        assertFalse(repo.current.premiumStatus?.pending == true)
+        assertEquals(9.99, repo.current.premiumPrice, 0.001)
     }
 
     /** Optional real-server test: run with CRAVE_LIVE_BACKEND=http://127.0.0.1:8080. */

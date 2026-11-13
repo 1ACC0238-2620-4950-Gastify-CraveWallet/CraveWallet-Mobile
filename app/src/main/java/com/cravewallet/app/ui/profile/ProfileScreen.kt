@@ -54,6 +54,7 @@ import com.cravewallet.app.ui.theme.Surface
 import com.cravewallet.app.ui.theme.SurfaceVariant
 import androidx.compose.ui.platform.LocalContext
 import java.time.LocalDate
+import java.time.ZoneId
 
 private enum class ProfileDialog { RATE, ACCOUNT, PREMIUM_CANCEL, PRIVACY, RESET, EMPTY }
 
@@ -62,6 +63,8 @@ private enum class ProfileDialog { RATE, ACCOUNT, PREMIUM_CANCEL, PRIVACY, RESET
 fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
     val context = LocalContext.current
     var dialog by remember { mutableStateOf<ProfileDialog?>(null) }
+    val premiumStatus = state.premiumStatus
+    val periodEnd = premiumStatus?.periodEndsAt?.atZone(ZoneId.of("America/Lima"))?.toLocalDate()
     val r = state.reminders
     val calendarText = if (r.calendarEnabled && CalendarHelper.hasPermission(context)) "Calendario activo" else "Calendario desactivado"
     val pushText = if (r.pushEnabled) "push activado" else "push desactivado"
@@ -129,14 +132,28 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             CwCard(Modifier.fillMaxWidth()) {
                 ListRow("Datos de la cuenta", subtitle = "Nombre y correo", icon = R.drawable.ic_person, onClick = { if(state.backendMode) actions.snack("La edición del perfil todavía no está disponible.") else dialog = ProfileDialog.ACCOUNT })
                 RowDivider()
-                val renewal = LocalDate.now().withDayOfMonth(1).plusMonths(1)
+                val monthlyPrice = "${Fmt.pen(state.premiumPrice)} al mes"
+                val planSubtitle = when {
+                    premiumStatus?.pending == true -> "Pago pendiente de confirmación"
+                    state.profile.premium && !state.backendMode -> {
+                        val renewal = LocalDate.now().withDayOfMonth(1).plusMonths(1)
+                        "$monthlyPrice · se renueva el ${Fmt.dayMonth(renewal)}"
+                    }
+                    state.profile.premium && periodEnd != null -> {
+                        val date = Fmt.dayMonth(periodEnd)
+                        if (premiumStatus.cancelAtPeriodEnd) "Acceso hasta el $date"
+                        else "$monthlyPrice · período vigente hasta el $date"
+                    }
+                    state.profile.premium -> monthlyPrice
+                    else -> "Plan gratuito · hasta ${AppState.FREE_PLAN_LIMIT} suscripciones"
+                }
                 ListRow(
                     "Plan Premium",
-                    subtitle = if (state.profile.premium) "${Fmt.pen(AppState.PREMIUM_PRICE)} al mes · se renueva el ${Fmt.dayMonth(renewal)}"
-                    else "Plan gratuito · hasta ${AppState.FREE_PLAN_LIMIT} suscripciones",
+                    subtitle = planSubtitle,
                     icon = R.drawable.ic_workspace_premium,
                     onClick = {
-                        if (state.profile.premium) dialog = ProfileDialog.PREMIUM_CANCEL else actions.openPremium(PremiumReason.PLAN)
+                        if (state.profile.premium && premiumStatus?.cancelAtPeriodEnd != true) dialog = ProfileDialog.PREMIUM_CANCEL
+                        else actions.openPremium(PremiumReason.PLAN)
                     },
                 )
                 RowDivider()
@@ -184,10 +201,16 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
         ProfileDialog.ACCOUNT -> AccountDialog(state.profile, onSave = { vm.setProfile(it); dialog = null; actions.snack("Datos actualizados.") }) { dialog = null }
         ProfileDialog.PREMIUM_CANCEL -> ConfirmDialog(
             title = "¿Cancelar Premium?",
-            body = "Volverás al plan gratuito: hasta ${AppState.FREE_PLAN_LIMIT} suscripciones y sin Análisis. Tus datos se mantienen.",
+            body = if (state.backendMode) "Conservarás Premium hasta que termine el período pagado. La siguiente renovación se cancelará."
+            else "Volverás al plan gratuito: hasta ${AppState.FREE_PLAN_LIMIT} suscripciones y sin Análisis. Tus datos se mantienen.",
             confirm = "Cancelar Premium",
             dismiss = "Mantener",
-            onConfirm = { vm.setPremium(false); dialog = null; actions.snack("Volviste al plan gratuito.") },
+            onConfirm = {
+                dialog = null
+                vm.cancelPremium {
+                    actions.snack(if (state.backendMode) "Renovación cancelada." else "Volviste al plan gratuito.")
+                }
+            },
             onDismiss = { dialog = null },
         )
         ProfileDialog.PRIVACY -> InfoDialog(

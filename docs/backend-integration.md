@@ -46,6 +46,8 @@ y las verificaciones de distribución del equipo.
 | Crear cuenta / ingresar | `POST /api/v1/auth/register` y `POST /api/v1/auth/login`. |
 | Mantener la sesión | Bearer JWT; ante 401 se rota el refresh token y se reintenta una vez. La rotación se serializa para solicitudes concurrentes. |
 | Consultar perfil | `GET /api/v1/users/me`. |
+| Ver Premium | `POST /api/v1/premium/checkout` devuelve el enlace de Mercado Pago. Al volver a la app, `GET /api/v1/premium/status` confirma si el plan está activo. |
+| Cancelar renovación de Premium | `POST /api/v1/premium/cancel` devuelve el estado y la vigencia del período pagado. |
 | Inicio, gastos, filtros y detalle de suscripciones | Listados `GET /api/v1/subscriptions?status=ACTIVE` y `status=CANCELLED`; los filtros locales operan sobre los registros recibidos. |
 | Agregar una suscripción | `POST /api/v1/subscriptions`; se conserva el UUID asignado por el servidor. |
 | Editar monto, categoría y fecha | `PATCH /api/v1/subscriptions/{id}`. |
@@ -64,8 +66,8 @@ la operación se guardó y que hace falta actualizar los datos.
 
 - En modo conectado se admiten PEN/USD y frecuencias mensual/anual. El nombre,
   moneda y frecuencia no se cambian en una edición porque el PATCH no los admite.
-- La eliminación definitiva, la reactivación y Premium no están implementados
-  en el backend. La app no los presenta como operaciones remotas exitosas.
+- La eliminación definitiva y la reactivación de suscripciones no están implementadas
+  en el backend.
 - Los pagos históricos no se generan a partir de fechas vencidas. El servidor
   conserva la fecha de renovación; el cliente no la avanza de forma ficticia.
 - Una tasa no disponible se representa como conversión no disponible; no se

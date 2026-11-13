@@ -1,5 +1,8 @@
 package com.cravewallet.app.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,12 +30,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -43,6 +50,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.cravewallet.app.AppViewModel
 import com.cravewallet.app.R
+import com.cravewallet.app.data.AccessMode
 import com.cravewallet.app.data.AppState
 import com.cravewallet.app.data.Category
 import com.cravewallet.app.data.SubStatus
@@ -141,7 +149,8 @@ class AppActions(
 @Composable
 fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsumedDeepLink: () -> Unit = {}) {
     val access by vm.access.collectAsStateWithLifecycle()
-    if(access == com.cravewallet.app.data.AccessMode.SIGNED_OUT) { AuthScreen(vm); return }
+    if(access == AccessMode.SIGNED_OUT) { AuthScreen(vm); return }
+    val context = LocalContext.current
     val nav = rememberNavController()
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -151,6 +160,25 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
     LaunchedEffect(apiError) { apiError?.let { snackbar.showSnackbar(it); vm.clearError() } }
     var addRequest by remember { mutableStateOf<AddRequest?>(null) }
     var premiumReason by remember { mutableStateOf<PremiumReason?>(null) }
+    var checkoutOpened by rememberSaveable { mutableStateOf(false) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (checkoutOpened) {
+            checkoutOpened = false
+            vm.refreshPremium()
+        }
+    }
+
+    val openCheckout: () -> Unit = {
+        vm.startPremiumCheckout { url ->
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+                checkoutOpened = true
+            } catch (_: ActivityNotFoundException) {
+                throw IllegalStateException("Instala un navegador para abrir el pago de Mercado Pago.")
+            }
+        }
+    }
 
     val actions = remember(nav) {
         AppActions(
@@ -161,7 +189,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
                 if (vm.canAddMore) addRequest = AddRequest(editId = null) else premiumReason = PremiumReason.LIMIT
             },
             openEdit = { id -> addRequest = AddRequest(editId = id) },
-            openPremium = { if(vm.connected) scope.launch {snackbar.showSnackbar("Premium todavía no está disponible.")} else premiumReason = it },
+            openPremium = { premiumReason = it },
         )
     }
 
@@ -222,7 +250,11 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
             ) { entry ->
                 ExpensesScreen(state, vm, actions, focusSearch = entry.arguments?.getBoolean("focus") ?: false)
             }
-            composable(Routes.ANALYSIS) { AnalysisScreen(state, vm, actions) }
+            composable(Routes.ANALYSIS) {
+                AnalysisScreen(state, vm, actions, onViewPremium = {
+                    if (vm.connected) openCheckout() else actions.openPremium(PremiumReason.ANALYSIS)
+                })
+            }
             composable(Routes.PROFILE) { ProfileScreen(state, vm, actions) }
             composable(Routes.DETAIL) { entry ->
                 DetailScreen(entry.arguments?.getString("id").orEmpty(), state, vm, actions)
@@ -250,10 +282,14 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
         PremiumSheet(
             reason = reason,
             state = state,
+            busy = apiBusy,
             onActivate = {
-                vm.setPremium(true)
                 premiumReason = null
-                actions.snack("¡Listo! Ya tienes CraveWallet Premium.")
+                if (vm.connected) openCheckout()
+                else {
+                    vm.activateDemoPremium()
+                    actions.snack("¡Listo! Ya tienes CraveWallet Premium.")
+                }
             },
             onDismiss = { premiumReason = null },
         )

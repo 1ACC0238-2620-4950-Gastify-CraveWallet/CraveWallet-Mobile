@@ -3,6 +3,7 @@ package com.cravewallet.app.data
 import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
 import com.cravewallet.app.R
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
@@ -96,6 +97,13 @@ data class Profile(
             .take(2).joinToString("") { it.first().uppercase() }.ifBlank { "CW" }
 }
 
+data class PremiumStatus(
+    val pending: Boolean,
+    val periodEndsAt: Instant?,
+    val cancelAtPeriodEnd: Boolean,
+    val monthlyPrice: Double,
+)
+
 data class ExchangeRates(
     val usd: Double = 3.76,
     val eur: Double = 4.10,
@@ -118,8 +126,10 @@ data class AppState(
     val conversionAvailable: Boolean = true,
     val rateAttribution: String? = null,
     val rateStale: Boolean = false,
+    val premiumStatus: PremiumStatus? = null,
 ) {
     val active: List<Subscription> get() = subscriptions.filter { it.isActive }
+    val premiumPrice: Double get() = premiumStatus?.monthlyPrice ?: PREMIUM_PRICE
 
     fun pen(sub: Subscription): Double = sub.amount * rates.rate(sub.currency)
 
@@ -141,6 +151,6 @@ data class AppState(
 
     companion object {
         const val FREE_PLAN_LIMIT = 5
-        const val PREMIUM_PRICE = 9.90
+        const val PREMIUM_PRICE = 9.99
     }
 }

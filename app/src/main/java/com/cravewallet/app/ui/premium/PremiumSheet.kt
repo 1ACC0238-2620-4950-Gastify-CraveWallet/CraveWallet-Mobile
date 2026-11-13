@@ -35,6 +35,7 @@ enum class PremiumReason { LIMIT, ANALYSIS, PLAN }
 fun PremiumSheet(
     reason: PremiumReason,
     state: AppState,
+    busy: Boolean,
     onActivate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -75,7 +76,7 @@ fun PremiumSheet(
             Spacer(Modifier.height(24.dp))
             if (state.profile.premium) {
                 Text(
-                    "${Fmt.pen(AppState.PREMIUM_PRICE)} al mes. Cancela cuando quieras desde Perfil.",
+                    "${Fmt.pen(state.premiumPrice)} al mes. Gestiona tu plan desde Perfil.",
                     style = CwType.Caption,
                     color = OnSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -84,14 +85,17 @@ fun PremiumSheet(
                 CwTextButton("Cerrar", onClick = onDismiss)
             } else {
                 PrimaryButton(
-                    "Ver Premium · ${Fmt.pen(AppState.PREMIUM_PRICE)} al mes",
+                    if (state.premiumStatus?.pending == true) "Continuar pago"
+                    else "${if (state.backendMode) "Ir al pago" else "Ver Premium"} · ${Fmt.pen(state.premiumPrice)} al mes",
                     onClick = onActivate,
+                    enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
                     icon = R.drawable.ic_workspace_premium,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Prototipo académico: no se realiza ningún cobro real.",
+                    if (state.backendMode) "El pago se completa en Mercado Pago."
+                    else "Prototipo académico: no se realiza ningún cobro real.",
                     style = CwType.Label,
                     color = OnSurfaceVariant,
                     textAlign = TextAlign.Center,

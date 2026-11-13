@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -54,11 +56,44 @@ class Repository(context: Context) {
         val rates = if (quote == null) ExchangeRates(usd=Double.NaN, eur=Double.NaN) else ExchangeRates(
             usd=quote.getDouble("rate"), eur=Double.NaN,
             updatedAt=java.time.Instant.parse(quote.getString("updatedAt")).atZone(java.time.ZoneId.of("America/Lima")).toLocalDateTime())
-        commit { it.copy(profile=Profile(it.profile.name, profile.getString("email"), false),
+        commit { it.copy(profile=it.profile.copy(email=profile.getString("email")),
             subscriptions=items, rates=rates, backendMode=true,
             conversionAvailable=active.getBoolean("conversionAvailable"),
             serverMonthlyTotal=if(active.isNull("monthlyTotalPen")) null else active.getDouble("monthlyTotalPen"),
             rateAttribution=quote?.optString("attributionUrl"),rateStale=quote?.optBoolean("stale",false) ?: false) }
+        try {
+            refreshPremium()
+        } catch (e: ApiException) {
+            if (e.status != 404) throw e
+        }
+    }
+
+    suspend fun refreshPremium() {
+        applyPremiumStatus(api.request("GET", "/api/v1/premium/status"))
+    }
+
+    suspend fun premiumCheckout(): String {
+        val response = api.request("POST", "/api/v1/premium/checkout")
+        val url = response.optString("checkoutUrl").toHttpUrlOrNull()
+        require(url != null && url.isHttps && url.username.isEmpty() && url.password.isEmpty()) {
+            "El servidor no devolvió un enlace de pago válido."
+        }
+        return url.toString()
+    }
+
+    suspend fun cancelPremium() {
+        applyPremiumStatus(api.request("POST", "/api/v1/premium/cancel"))
+    }
+
+    private fun applyPremiumStatus(response: JSONObject) {
+        val premium = response.getBoolean("premium")
+        val status = PremiumStatus(
+            pending = response.optString("membershipStatus") == "PENDING",
+            periodEndsAt = if (response.isNull("periodEndsAt")) null else Instant.parse(response.getString("periodEndsAt")),
+            cancelAtPeriodEnd = response.getBoolean("cancelAtPeriodEnd"),
+            monthlyPrice = response.getDouble("monthlyPrice"),
+        )
+        commit { it.copy(profile = it.profile.copy(premium = premium), premiumStatus = status) }
     }
 
     private fun fromRemote(o: JSONObject, local: Map<String, Subscription> = emptyMap()): Subscription {
