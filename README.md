@@ -12,7 +12,7 @@ Esta rama agrega registro, login, sesión JWT, suscripciones y gastos de Deliver
 contra `CraveWallet-Backend`. Al abrirla, puedes **iniciar sesión** o elegir
 **Ver demostración sin conexión**. La demostración está identificada en pantalla.
 
-La dirección predeterminada es **https://cravewallet-api.onrender.com**, con
+La dirección predeterminada es **https://cravewallet-api-av2.onrender.com**, con
 PostgreSQL alojado en Render. Puedes usarla con Internet sin encender la PC
 del equipo. El servidor gratuito puede tardar unos minutos en despertar.
 

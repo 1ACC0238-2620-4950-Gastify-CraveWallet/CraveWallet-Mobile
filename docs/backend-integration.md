@@ -5,7 +5,7 @@ local. La demostración se identifica en pantalla y no escribe en el servidor.
 
 ## Servidor público
 
-La app utiliza **https://cravewallet-api.onrender.com** de forma predeterminada.
+La app utiliza **https://cravewallet-api-av2.onrender.com** de forma predeterminada.
 Registro, login, suscripciones y Delivery se conectan por HTTPS a PostgreSQL
 en Render. Se necesita Internet, pero no una PC con el backend encendido.
 El primer acceso puede tardar unos minutos por el arranque del servicio gratuito;
@@ -34,7 +34,7 @@ El backend de desarrollo pierde los datos al reiniciarse; esta propiedad de H2
 también invalida sus sesiones anteriores.
 
 La URL se puede fijar al compilar mediante
-`-PAPI_BASE_URL=https://cravewallet-api.onrender.com`. El campo para cambiarla y
+`-PAPI_BASE_URL=https://cravewallet-api-av2.onrender.com`. El campo para cambiarla y
 HTTP sin TLS solo están habilitados en el APK de depuración. La URL pública predeterminada utiliza HTTPS. El APK `debug` permite
 cambiarla para desarrollo; la publicación en una tienda requiere la firma
 y las verificaciones de distribución del equipo.
