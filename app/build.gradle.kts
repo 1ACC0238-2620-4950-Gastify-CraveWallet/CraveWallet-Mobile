@@ -13,7 +13,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-        val apiUrl = providers.gradleProperty("API_BASE_URL").getOrElse("https://cravewallet-api.onrender.com")
+        val apiUrl = providers.gradleProperty("API_BASE_URL").getOrElse("https://cravewallet-api-av2.onrender.com")
         buildConfigField("String", "API_BASE_URL", "\"${apiUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
 
