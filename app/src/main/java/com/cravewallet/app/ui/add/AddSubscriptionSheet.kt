@@ -1,6 +1,7 @@
 package com.cravewallet.app.ui.add
 
 import android.Manifest
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -45,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -98,10 +100,10 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-/** Petición para abrir el alta: [editId] null = nueva suscripción. */
+/** Request to open add sheet: [editId] null = new subscription. */
 data class AddRequest(val editId: String?)
 
-/** Borrador del formulario. */
+/** Form draft. */
 private data class Draft(
     val name: String = "",
     val amount: String = "",
@@ -113,19 +115,17 @@ private data class Draft(
 ) {
     val amountValue: Double? get() = amount.replace(',', '.').toDoubleOrNull()
 
-    fun errors(today: LocalDate): Map<String, String> = buildMap {
-        if (name.isBlank()) put("name", "Ingresa el nombre del servicio.")
+    fun errors(today: LocalDate, context: Context): Map<String, String> = buildMap {
+        if (name.isBlank()) put("name", context.getString(R.string.add_err_name))
         val a = amountValue
-        if (a == null || a <= 0) put("amount", "Ingresa un monto mayor a 0.")
+        if (a == null || a <= 0) put("amount", context.getString(R.string.add_err_amount))
         when {
-            nextCharge == null -> put("date", "Elige la fecha del próximo cobro.")
-            nextCharge.isBefore(today) -> put("date", "La fecha no puede ser pasada.")
+            nextCharge == null -> put("date", context.getString(R.string.add_err_date_empty))
+            nextCharge.isBefore(today) -> put("date", context.getString(R.string.add_err_date_past))
         }
-        if (category == null) put("category", "Elige una categoría.")
+        if (category == null) put("category", context.getString(R.string.add_err_category))
     }
 }
-
-private val steps = listOf("Servicio", "Detalles", "Recordatorio")
 
 @Composable
 fun AddSubscriptionSheet(
@@ -139,7 +139,7 @@ fun AddSubscriptionSheet(
     val editing = remember(request) { request.editId?.let { vm.subscription(it) } }
     val initial = remember(request) {
         editing?.let {
-            Draft(it.name, Fmt.rate(it.amount), it.currency, it.frequency, it.nextCharge, it.category, it.notes)
+            Draft(it.name, Fmt.rate(it.amount, context), it.currency, it.frequency, it.nextCharge, it.category, it.notes)
         } ?: Draft()
     }
     var draft by remember(request) { mutableStateOf(initial) }
@@ -151,14 +151,19 @@ fun AddSubscriptionSheet(
     var calendarDialog by remember { mutableStateOf(false) }
     val dirty = draft != initial
     val today = LocalDate.now()
+    val steps = listOf(
+        stringResource(R.string.add_step_service),
+        stringResource(R.string.add_step_details),
+        stringResource(R.string.add_step_reminder),
+    )
 
     fun requestClose() {
-        if(vm.busy.value) return
+        if (vm.busy.value) return
         if (dirty) confirmDiscard = true else onClose()
     }
 
     fun finish(withCalendar: Boolean) {
-        if(vm.busy.value) return
+        if (vm.busy.value) return
         val amount = draft.amountValue ?: return
         val next = draft.nextCharge ?: return
         val id = editing?.id ?: vm.newId()
@@ -181,17 +186,23 @@ fun AddSubscriptionSheet(
             onClose()
             val name = sub.name
             when {
-                editing != null -> actions.snack("Cambios guardados.")
-                state.backendMode -> actions.snack("$name guardado en tu cuenta.")
+                editing != null -> actions.snack(context.getString(R.string.add_snack_changes_saved))
+                state.backendMode -> actions.snack(context.getString(R.string.add_snack_saved_remote, name))
                 created -> {
                     val at = ReminderPlanner.reminderTime(next, lead, state.reminders)
-                    actions.snack("$name agregado. Te avisaremos el ${Fmt.dayMonth(at.toLocalDate())}.", "Deshacer") { vm.undoAdd(id) }
+                    actions.snack(
+                        context.getString(R.string.add_snack_added_with_date, name, Fmt.dayMonth(at.toLocalDate())),
+                        context.getString(R.string.common_undo),
+                    ) { vm.undoAdd(id) }
                 }
                 withCalendar || calendar -> actions.snack(
-                    "$name agregado. Sin calendario: te avisaremos por notificación.",
-                    "Ajustes",
+                    context.getString(R.string.add_snack_added_no_cal, name),
+                    context.getString(R.string.add_snack_settings_action),
                 ) { actions.nav.navigate(Routes.REMINDERS) }
-                else -> actions.snack("$name agregado.", "Deshacer") { vm.undoAdd(id) }
+                else -> actions.snack(
+                    context.getString(R.string.add_snack_added_simple, name),
+                    context.getString(R.string.common_undo),
+                ) { vm.undoAdd(id) }
             }
         }
     }
@@ -206,17 +217,22 @@ fun AddSubscriptionSheet(
     }
 
     SheetOverlay(onDismissRequest = { if (step == 3) step = 2 else requestClose() }) {
-        // Encabezado
+        // Header
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(start = 4.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = ::requestClose) { CwIcon(R.drawable.ic_close, contentDescription = "Cerrar") }
+            IconButton(onClick = ::requestClose) { CwIcon(R.drawable.ic_close, contentDescription = stringResource(R.string.common_close)) }
             Spacer(Modifier.width(4.dp))
-            Text(if (editing != null) "Editar gasto" else "Agregar gasto", style = CwType.Title, color = OnSurface, modifier = Modifier.weight(1f))
-            Text("Paso $step de 3", style = CwType.Caption, color = OnSurfaceVariant)
+            Text(
+                stringResource(if (editing != null) R.string.add_title_edit else R.string.add_title_new),
+                style = CwType.Title,
+                color = OnSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(R.string.add_step_counter, step), style = CwType.Caption, color = OnSurfaceVariant)
         }
         Spacer(Modifier.height(4.dp))
         Stepper(step, steps)
@@ -226,7 +242,7 @@ fun AddSubscriptionSheet(
                 onPick = { svc ->
                     draft = draft.copy(
                         name = svc.name,
-                        amount = Fmt.rate(svc.amount),
+                        amount = Fmt.rate(svc.amount, context),
                         currency = svc.currency,
                         category = svc.category,
                     )
@@ -246,7 +262,7 @@ fun AddSubscriptionSheet(
                 onChange = { draft = it },
                 onDiscard = ::requestClose,
                 onContinue = {
-                    if (draft.errors(today).isEmpty()) {
+                    if (draft.errors(today, context).isEmpty()) {
                         showErrors = false
                         step = 3
                     } else showErrors = true
@@ -271,15 +287,26 @@ fun AddSubscriptionSheet(
             onDismissRequest = { confirmDiscard = false },
             containerColor = Surface,
             shape = RoundedCornerShape(24.dp),
-            title = { Text(if (editing != null) "¿Descartar los cambios?" else "¿Descartar este gasto?", style = CwType.Heading, color = OnSurface) },
+            title = {
+                Text(
+                    stringResource(if (editing != null) R.string.add_discard_edit_title else R.string.add_discard_new_title),
+                    style = CwType.Heading,
+                    color = OnSurface,
+                )
+            },
             text = {
-                val who = draft.name.ifBlank { "este gasto" }
-                Text("Se perderán los datos de $who que ingresaste.", style = CwType.Body, color = OnSurface)
+                val who = draft.name.ifBlank { stringResource(R.string.add_discard_default_who) }
+                Text(stringResource(R.string.add_discard_body, who), style = CwType.Body, color = OnSurface)
             },
             confirmButton = {
-                PrimaryButton("Descartar", onClick = { confirmDiscard = false; onClose() }, height = 44.dp, shape = RoundedCornerShape(12.dp))
+                PrimaryButton(
+                    stringResource(R.string.common_discard),
+                    onClick = { confirmDiscard = false; onClose() },
+                    height = 44.dp,
+                    shape = RoundedCornerShape(12.dp),
+                )
             },
-            dismissButton = { CwTextButton("Seguir editando", onClick = { confirmDiscard = false }) },
+            dismissButton = { CwTextButton(stringResource(R.string.add_keep_editing), onClick = { confirmDiscard = false }) },
         )
     }
 
@@ -297,12 +324,13 @@ fun AddSubscriptionSheet(
     }
 }
 
-// region Paso 1 · Servicio
+// region Step 1 · Service
 
 @Composable
 private fun ColumnScope.StepService(onPick: (KnownService) -> Unit, onManual: (String) -> Unit) {
+    val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
-    val results = Catalog.search(query)
+    val results = Catalog.search(query, context)
     Column(
         Modifier
             .weight(1f)
@@ -311,12 +339,16 @@ private fun ColumnScope.StepService(onPick: (KnownService) -> Unit, onManual: (S
             .padding(horizontal = 16.dp),
     ) {
         Spacer(Modifier.height(16.dp))
-        CwSearchBar(query, { query = it }, "Buscar servicio (ej. Netflix)")
+        CwSearchBar(query, { query = it }, stringResource(R.string.add_search_service_placeholder))
         Spacer(Modifier.height(18.dp))
-        Text(if (query.isBlank()) "Populares en Perú" else "Resultados", style = CwType.Heading, color = OnSurface)
+        Text(
+            stringResource(if (query.isBlank()) R.string.add_popular_peru else R.string.add_search_results),
+            style = CwType.Heading,
+            color = OnSurface,
+        )
         Spacer(Modifier.height(10.dp))
         if (results.isEmpty()) {
-            Text("No encontramos «${query.trim()}» en la lista.", style = CwType.Body, color = OnSurfaceVariant)
+            Text(stringResource(R.string.add_service_not_found, query.trim()), style = CwType.Body, color = OnSurfaceVariant)
         }
         results.chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -325,10 +357,11 @@ private fun ColumnScope.StepService(onPick: (KnownService) -> Unit, onManual: (S
             }
         }
         HorizontalDivider(Modifier.padding(vertical = 12.dp), color = OutlineVariant)
-        Text("¿No está en la lista? Regístralo a mano.", style = CwType.Body, color = OnSurfaceVariant)
+        Text(stringResource(R.string.add_manual_prompt), style = CwType.Body, color = OnSurfaceVariant)
         Spacer(Modifier.height(12.dp))
         TonalButton(
-            if (results.isEmpty() && query.isNotBlank()) "Agregar «${query.trim()}» a mano" else "Ingresar manualmente",
+            if (results.isEmpty() && query.isNotBlank()) stringResource(R.string.add_manual_with_query, query.trim())
+            else stringResource(R.string.add_manual_btn),
             onClick = { onManual(if (results.isEmpty()) query.trim() else "") },
             icon = R.drawable.ic_edit,
             modifier = Modifier.fillMaxWidth(),
@@ -357,7 +390,7 @@ private fun ServiceTile(svc: KnownService, modifier: Modifier, onClick: () -> Un
 
 // endregion
 
-// region Paso 2 · Detalles
+// region Step 2 · Details
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -370,8 +403,9 @@ private fun ColumnScope.StepDetails(
     onDiscard: () -> Unit,
     onContinue: () -> Unit,
 ) {
+    val context = LocalContext.current
     val today = LocalDate.now()
-    val errors = if (showErrors) draft.errors(today) else emptyMap()
+    val errors = if (showErrors) draft.errors(today, context) else emptyMap()
     var datePicker by remember { mutableStateOf(false) }
 
     Column(
@@ -382,7 +416,7 @@ private fun ColumnScope.StepDetails(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            if(lockIdentity) "Puedes editar monto, categoría y próximo cobro. Nombre, moneda y frecuencia se conservan." else "Completa los datos. Los campos con * son obligatorios.",
+            stringResource(if (lockIdentity) R.string.add_details_locked_hint else R.string.add_details_required_hint),
             style = CwType.Body,
             color = OnSurfaceVariant,
             modifier = Modifier.padding(top = 12.dp),
@@ -391,34 +425,35 @@ private fun ColumnScope.StepDetails(
             InfoBanner(
                 icon = R.drawable.ic_error,
                 iconTint = Error,
-                title = if (errors.size == 1) "Falta 1 dato obligatorio" else "Faltan ${errors.size} datos obligatorios",
-                body = "Revisa los campos marcados para continuar.",
+                title = if (errors.size == 1) stringResource(R.string.add_err_missing_one)
+                else stringResource(R.string.add_err_missing_many, errors.size),
+                body = stringResource(R.string.add_err_missing_body),
                 container = Error.copy(alpha = 0.10f),
             )
         }
         CwTextField(
-            label = "Nombre del servicio *",
+            label = stringResource(R.string.add_field_name_label),
             value = draft.name,
-            onValueChange = { if(!lockIdentity) onChange(draft.copy(name = it)) },
-            placeholder = "Ej. Notion Plus",
+            onValueChange = { if (!lockIdentity) onChange(draft.copy(name = it)) },
+            placeholder = stringResource(R.string.add_field_name_placeholder),
             error = errors["name"],
             maxLength = 40,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CwTextField(
-                label = "Monto *",
+                label = stringResource(R.string.add_field_amount_label),
                 value = draft.amount,
                 onValueChange = { v -> if (v.all { it.isDigit() || it == '.' || it == ',' }) onChange(draft.copy(amount = v)) },
-                placeholder = "Ej. 79.90",
+                placeholder = stringResource(R.string.add_field_amount_placeholder),
                 error = errors["amount"],
                 keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.weight(1.6f),
                 maxLength = 9,
             )
             CwDropdownField(
-                label = "Moneda",
+                label = stringResource(R.string.add_field_currency_label),
                 selected = draft.currency,
-                choices = (if(lockIdentity) listOf(draft.currency) else if(state.backendMode) listOf(Currency.PEN,Currency.USD) else Currency.entries).map { Choice(it, it.code, it.label) },
+                choices = (if (lockIdentity) listOf(draft.currency) else if (state.backendMode) listOf(Currency.PEN, Currency.USD) else Currency.entries).map { Choice(it, it.code, it.label(context)) },
                 onSelect = { onChange(draft.copy(currency = it)) },
                 modifier = Modifier.weight(1f),
                 menuWidth = 232.dp,
@@ -431,46 +466,46 @@ private fun ColumnScope.StepDetails(
                 icon = R.drawable.ic_currency_exchange,
                 iconTint = Primary,
                 container = PrimaryContainer,
-                title = "≈ ${Fmt.pen(monthly)} al mes",
-                body = "Con el tipo de cambio de hoy (S/ ${Fmt.rate(state.rates.rate(draft.currency))}, ${Fmt.clock(state.rates.updatedAt)}). Lo actualizamos cada día.",
+                title = stringResource(R.string.add_fx_banner_title, Fmt.pen(monthly, context)),
+                body = stringResource(R.string.add_fx_banner_body, Fmt.rate(state.rates.rate(draft.currency), context), Fmt.clock(state.rates.updatedAt)),
             )
         }
         CwDropdownField(
-            label = "Frecuencia",
+            label = stringResource(R.string.add_field_frequency_label),
             selected = draft.frequency,
-            choices = (if(lockIdentity) listOf(draft.frequency) else if(state.backendMode) listOf(Frequency.MENSUAL,Frequency.ANUAL) else Frequency.entries).map { Choice(it, it.label) },
+            choices = (if (lockIdentity) listOf(draft.frequency) else if (state.backendMode) listOf(Frequency.MENSUAL, Frequency.ANUAL) else Frequency.entries).map { Choice(it, it.label(context)) },
             onSelect = { onChange(draft.copy(frequency = it)) },
         )
         CwPickerField(
-            label = "Próximo cobro *",
+            label = stringResource(R.string.add_field_next_charge_label),
             value = draft.nextCharge?.let(Fmt::input),
-            placeholder = "dd/mm/aaaa",
+            placeholder = stringResource(R.string.add_field_next_charge_placeholder),
             onClick = { datePicker = true },
             trailingIcon = R.drawable.ic_calendar_month,
             error = errors["date"],
             focused = datePicker,
         )
         CwDropdownField(
-            label = "Categoría *",
+            label = stringResource(R.string.add_field_category_label),
             selected = draft.category,
-            choices = Category.entries.map { Choice(it, it.label) },
+            choices = Category.entries.map { Choice(it, it.label(context)) },
             onSelect = { onChange(draft.copy(category = it)) },
-            placeholder = "Elige una categoría",
+            placeholder = stringResource(R.string.add_field_category_placeholder),
             error = errors["category"],
         )
         CwTextField(
-            label = "Notas (opcional)",
+            label = stringResource(R.string.add_field_notes_label),
             value = draft.notes,
             onValueChange = { onChange(draft.copy(notes = it)) },
-            placeholder = "Máx. 120 caracteres",
+            placeholder = stringResource(R.string.add_field_notes_placeholder),
             maxLength = 120,
             imeAction = ImeAction.Done,
         )
         Spacer(Modifier.height(8.dp))
     }
     BottomActions {
-        SecondaryButton("Descartar", onClick = onDiscard, modifier = Modifier.weight(1f))
-        PrimaryButton("Continuar", onClick = onContinue, modifier = Modifier.weight(1f))
+        SecondaryButton(stringResource(R.string.common_discard), onClick = onDiscard, modifier = Modifier.weight(1f))
+        PrimaryButton(stringResource(R.string.common_continue), onClick = onContinue, modifier = Modifier.weight(1f))
     }
 
     if (datePicker) {
@@ -484,19 +519,19 @@ private fun ColumnScope.StepDetails(
         DatePickerDialog(
             onDismissRequest = { datePicker = false },
             confirmButton = {
-                CwTextButton("Aceptar", color = Primary, onClick = {
+                CwTextButton(stringResource(R.string.common_accept), color = Primary, onClick = {
                     pickerState.selectedDateMillis?.let { ms ->
                         onChange(draft.copy(nextCharge = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()))
                     }
                     datePicker = false
                 })
             },
-            dismissButton = { CwTextButton("Cancelar", onClick = { datePicker = false }) },
+            dismissButton = { CwTextButton(stringResource(R.string.common_cancel), onClick = { datePicker = false }) },
             colors = DatePickerDefaults.colors(containerColor = Surface),
         ) {
             DatePicker(
                 state = pickerState,
-                title = { Text("Próximo cobro", style = CwType.BodyStrong, modifier = Modifier.padding(start = 24.dp, top = 16.dp)) },
+                title = { Text(stringResource(R.string.add_datepicker_title), style = CwType.BodyStrong, modifier = Modifier.padding(start = 24.dp, top = 16.dp)) },
                 colors = DatePickerDefaults.colors(
                     containerColor = Surface,
                     selectedDayContainerColor = Primary,
@@ -510,7 +545,7 @@ private fun ColumnScope.StepDetails(
 
 // endregion
 
-// region Paso 3 · Recordatorio
+// region Step 3 · Reminder
 
 @Composable
 private fun ColumnScope.StepReminder(
@@ -523,6 +558,7 @@ private fun ColumnScope.StepReminder(
     onBack: () -> Unit,
     onSubmit: () -> Unit,
 ) {
+    val context = LocalContext.current
     val next = draft.nextCharge ?: LocalDate.now()
     val amount = draft.amountValue ?: 0.0
     val pen = amount * state.rates.rate(draft.currency)
@@ -541,26 +577,26 @@ private fun ColumnScope.StepReminder(
                     ServiceAvatar(draft.name, draft.category)
                     Column(Modifier.weight(1f)) {
                         Text(draft.name, style = CwType.BodyLarge, fontWeight = FontWeight.Medium, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("${draft.category?.label ?: ""} · ${draft.frequency.label}", style = CwType.Caption, color = OnSurfaceVariant)
+                        Text("${draft.category?.label(context) ?: ""} · ${draft.frequency.label(context)}", style = CwType.Caption, color = OnSurfaceVariant)
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(Fmt.pen(pen), style = CwType.Heading.copy(fontFamily = com.cravewallet.app.ui.theme.Inter, fontWeight = FontWeight.SemiBold), color = OnSurface)
-                        if (draft.currency != Currency.PEN) Text(Fmt.money(amount, draft.currency), style = CwType.Caption, color = OnSurfaceVariant)
+                        Text(Fmt.pen(pen, context), style = CwType.Heading.copy(fontFamily = com.cravewallet.app.ui.theme.Inter, fontWeight = FontWeight.SemiBold), color = OnSurface)
+                        if (draft.currency != Currency.PEN) Text(Fmt.money(amount, draft.currency, context), style = CwType.Caption, color = OnSurfaceVariant)
                     }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 12.dp), color = OutlineVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     CwIcon(R.drawable.ic_event, size = 20.dp, tint = OnSurfaceVariant)
-                    Text("Próximo cobro: ${Fmt.weekdayDate(next)}", style = CwType.Body, color = OnSurface)
+                    Text(stringResource(R.string.add_reminder_next_charge, Fmt.weekdayDate(next)), style = CwType.Body, color = OnSurface)
                 }
             }
         }
         Spacer(Modifier.height(20.dp))
-        Text("¿Con cuánta anticipación te avisamos?", style = CwType.Body, color = OnSurface)
+        Text(stringResource(R.string.add_reminder_lead_question), style = CwType.Body, color = OnSurface)
         Spacer(Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
             items(listOf(LeadTime.ONE_DAY, LeadTime.THREE_DAYS, LeadTime.SEVEN_DAYS, LeadTime.SAME_DAY)) { option ->
-                CwChip(option.chip, selected = option == lead, showCheck = true) { onLead(option) }
+                CwChip(stringResource(option.chipRes), selected = option == lead, showCheck = true) { onLead(option) }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -580,9 +616,9 @@ private fun ColumnScope.StepReminder(
                         .padding(9.dp),
                 ) { CwIcon(R.drawable.ic_calendar_month, size = 22.dp, tint = Primary) }
                 Column(Modifier.weight(1f)) {
-                    Text("Agendar en mi calendario", style = CwType.BodyStrong, color = OnSurface)
+                    Text(stringResource(R.string.add_reminder_calendar_title), style = CwType.BodyStrong, color = OnSurface)
                     Text(
-                        "Evento el ${Fmt.shortWeekday(at.toLocalDate())}, ${Fmt.time(at.hour, at.minute)}",
+                        stringResource(R.string.add_reminder_calendar_subtitle, Fmt.shortWeekday(at.toLocalDate()), Fmt.time(at.hour, at.minute, context)),
                         style = CwType.Caption,
                         color = OnSurfaceVariant,
                     )
@@ -593,14 +629,17 @@ private fun ColumnScope.StepReminder(
         Spacer(Modifier.height(16.dp))
         InfoBanner(
             icon = R.drawable.ic_notifications,
-            body = if (state.reminders.pushEnabled) "También te avisaremos con una notificación push en este teléfono."
-            else "Las notificaciones push se configuran en Perfil › Recordatorios.",
+            body = stringResource(if (state.reminders.pushEnabled) R.string.add_reminder_push_on else R.string.add_reminder_push_off),
         )
         Spacer(Modifier.height(16.dp))
     }
     BottomActions {
-        SecondaryButton("Atrás", onClick = onBack, modifier = Modifier.weight(1f))
-        PrimaryButton(if (calendar) "Activar recordatorio" else "Guardar", onClick = onSubmit, modifier = Modifier.weight(1.3f))
+        SecondaryButton(stringResource(R.string.common_back), onClick = onBack, modifier = Modifier.weight(1f))
+        PrimaryButton(
+            stringResource(if (calendar) R.string.add_reminder_activate_btn else R.string.common_save),
+            onClick = onSubmit,
+            modifier = Modifier.weight(1.3f),
+        )
     }
 }
 
@@ -614,7 +653,7 @@ private fun BottomActions(content: @Composable androidx.compose.foundation.layou
     }
 }
 
-/** A7 · Explica para qué se usa el calendario antes de pedir el permiso del sistema. */
+/** A7 · Explains what the calendar is used for before requesting the system permission. */
 @Composable
 fun CalendarPermissionDialog(onAllow: () -> Unit, onLater: () -> Unit) {
     AlertDialog(
@@ -622,10 +661,10 @@ fun CalendarPermissionDialog(onAllow: () -> Unit, onLater: () -> Unit) {
         containerColor = Surface,
         shape = RoundedCornerShape(24.dp),
         icon = { DialogIcon(R.drawable.ic_calendar_month) },
-        title = { Text("¿Permitir acceso a tu calendario?", style = CwType.Heading, color = OnSurface, textAlign = TextAlign.Center) },
+        title = { Text(stringResource(R.string.cal_perm_title), style = CwType.Heading, color = OnSurface, textAlign = TextAlign.Center) },
         text = {
             Text(
-                "CraveWallet solo crea un evento antes de cada cobro. No lee ni cambia tus otros eventos.",
+                stringResource(R.string.cal_perm_body),
                 style = CwType.Body,
                 color = OnSurface,
                 textAlign = TextAlign.Center,
@@ -633,9 +672,9 @@ fun CalendarPermissionDialog(onAllow: () -> Unit, onLater: () -> Unit) {
         },
         confirmButton = {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                PrimaryButton("Permitir", onClick = onAllow, height = 48.dp, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth())
+                PrimaryButton(stringResource(R.string.common_allow), onClick = onAllow, height = 48.dp, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
-                CwTextButton("Ahora no", onClick = onLater, modifier = Modifier.fillMaxWidth())
+                CwTextButton(stringResource(R.string.common_not_now), onClick = onLater, modifier = Modifier.fillMaxWidth())
             }
         },
     )

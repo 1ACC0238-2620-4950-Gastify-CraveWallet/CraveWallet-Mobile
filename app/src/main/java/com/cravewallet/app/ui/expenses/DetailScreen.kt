@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cravewallet.app.AppViewModel
@@ -65,6 +67,7 @@ import kotlin.math.abs
 
 @Composable
 fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActions) {
+    val context = LocalContext.current
     val sub = state.subscriptions.firstOrNull { it.id == id }
     LaunchedEffect(sub == null) { if (sub == null) actions.back() }
     if (sub == null) return
@@ -76,14 +79,14 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
     val days = ChronoUnit.DAYS.between(today, sub.nextCharge)
 
     Column(Modifier.fillMaxSize()) {
-        CwTopBar("Detalle", onBack = actions::back, actions = {
-            IconButton(onClick = { actions.openEdit(sub.id) }) { CwIcon(R.drawable.ic_edit, contentDescription = "Editar") }
+        CwTopBar(stringResource(R.string.detail_title), onBack = actions::back, actions = {
+            IconButton(onClick = { actions.openEdit(sub.id) }) { CwIcon(R.drawable.ic_edit, contentDescription = stringResource(R.string.common_edit)) }
             Box {
-                IconButton(onClick = { menu = true }) { CwIcon(R.drawable.ic_more_vert, contentDescription = "Más opciones") }
+                IconButton(onClick = { menu = true }) { CwIcon(R.drawable.ic_more_vert, contentDescription = stringResource(R.string.common_more_options)) }
                 DropdownMenu(menu, onDismissRequest = { menu = false }, containerColor = Surface) {
                     if (!sub.cancelled) {
                         DropdownMenuItem(
-                            text = { Text(if (sub.isUnused) "Marcar en uso" else "Marcar sin usar", style = CwType.Body) },
+                            text = { Text(stringResource(if (sub.isUnused) R.string.detail_mark_in_use else R.string.detail_mark_unused), style = CwType.Body) },
                             leadingIcon = { CwIcon(if (sub.isUnused) R.drawable.ic_check_circle else R.drawable.ic_visibility_off, size = 20.dp) },
                             onClick = {
                                 menu = false
@@ -93,7 +96,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                     }
                     DropdownMenuItem(
                         enabled = !state.backendMode,
-                        text = { Text("Eliminar del registro", style = CwType.Body, color = Error) },
+                        text = { Text(stringResource(R.string.detail_delete_record), style = CwType.Body, color = Error) },
                         leadingIcon = { CwIcon(R.drawable.ic_delete, size = 20.dp, tint = Error) },
                         onClick = { menu = false; confirmDelete = true },
                     )
@@ -111,7 +114,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                 ServiceAvatar(sub.name, sub.category, size = 56.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(sub.name, style = CwType.Title, color = OnSurface)
-                    Text("${sub.category.label} · ${sub.frequency.label}", style = CwType.Caption, color = OnSurfaceVariant)
+                    Text("${stringResource(sub.category.labelRes)} · ${stringResource(sub.frequency.labelRes)}", style = CwType.Caption, color = OnSurfaceVariant)
                     StatusChip(state.status(sub))
                 }
             }
@@ -120,17 +123,17 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
             CwCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     val whenText = when {
-                        sub.cancelled -> "Cancelada · ya no se registran cobros"
-                        days == 0L -> "Próximo cobro · hoy"
-                        days == 1L -> "Próximo cobro · mañana, ${Fmt.dayMonth(sub.nextCharge)}"
-                        else -> "Próximo cobro · ${Fmt.dayMonth(sub.nextCharge)} (en $days días)"
+                        sub.cancelled -> stringResource(R.string.detail_when_cancelled)
+                        days == 0L -> stringResource(R.string.detail_when_today)
+                        days == 1L -> stringResource(R.string.detail_when_tomorrow, Fmt.dayMonth(sub.nextCharge))
+                        else -> stringResource(R.string.detail_when_in_days, Fmt.dayMonth(sub.nextCharge), days)
                     }
                     Text(whenText, style = CwType.Caption, color = OnSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
-                    Text(Fmt.pen(state.pen(sub)), style = CwType.Amount, color = OnSurface)
+                    Text(Fmt.pen(state.pen(sub), context), style = CwType.Amount, color = OnSurface)
                     if (sub.currency != Currency.PEN) {
                         Text(
-                            "${Fmt.money(sub.amount, sub.currency)} × TC S/ ${Fmt.rate(state.rates.rate(sub.currency))}",
+                            stringResource(R.string.detail_rate_formula, Fmt.money(sub.amount, sub.currency, context), Fmt.rate(state.rates.rate(sub.currency), context)),
                             style = CwType.Caption,
                             fontWeight = FontWeight.Medium,
                             color = OnSurfaceVariant,
@@ -146,9 +149,9 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                             CwIcon(if (up) R.drawable.ic_trending_up else R.drawable.ic_trending_down, size = 20.dp, tint = if (up) Error else Success)
                             Text(
                                 when {
-                                    same -> "Igual que el cobro anterior (TC ${Fmt.rate(last.rate)})"
-                                    up -> "${Fmt.pen(diff)} más que el cobro anterior (TC ${Fmt.rate(last.rate)})"
-                                    else -> "${Fmt.pen(-diff)} menos que el cobro anterior (TC ${Fmt.rate(last.rate)})"
+                                    same -> stringResource(R.string.detail_var_same, Fmt.rate(last.rate, context))
+                                    up -> stringResource(R.string.detail_var_more, Fmt.pen(diff, context), Fmt.rate(last.rate, context))
+                                    else -> stringResource(R.string.detail_var_less, Fmt.pen(-diff, context), Fmt.rate(last.rate, context))
                                 },
                                 style = CwType.Caption,
                                 color = OnSurface,
@@ -159,8 +162,8 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         CwIcon(R.drawable.ic_sync, size = 20.dp, tint = OnSurfaceVariant)
                         Text(
-                            if (sub.currency == Currency.PEN) "Se cobra en soles: el monto no cambia con el tipo de cambio"
-                            else "Tipo de cambio actualizado ${Fmt.relativeDateTime(state.rates.updatedAt)}",
+                            if (sub.currency == Currency.PEN) stringResource(R.string.detail_pen_no_fx)
+                            else stringResource(R.string.detail_fx_updated, Fmt.relativeDateTime(state.rates.updatedAt, context = context)),
                             style = CwType.Caption,
                             color = OnSurfaceVariant,
                         )
@@ -172,14 +175,14 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                 Spacer(Modifier.height(16.dp))
                 val at = ReminderPlanner.reminderTime(sub, state.reminders)
                 val channel = when {
-                    sub.calendarEventId != null -> "en tu calendario"
-                    state.reminders.pushEnabled -> "notificación push"
-                    else -> "sin canal activo"
+                    sub.calendarEventId != null -> stringResource(R.string.detail_channel_calendar)
+                    state.reminders.pushEnabled -> stringResource(R.string.detail_channel_push)
+                    else -> stringResource(R.string.detail_channel_none)
                 }
                 OutlinedGroup {
                     ListRow(
-                        title = "Recordatorio",
-                        subtitle = "${Fmt.shortWeekday(at.toLocalDate()).replaceFirstChar { it.uppercase() }}, ${Fmt.time(at.hour, at.minute)} · $channel",
+                        title = stringResource(R.string.detail_reminder_title),
+                        subtitle = "${Fmt.shortWeekday(at.toLocalDate()).replaceFirstChar { it.uppercase() }}, ${Fmt.time(at.hour, at.minute, context)} · $channel",
                         icon = R.drawable.ic_notifications_active,
                         iconBackground = PrimaryContainer,
                         iconTint = Primary,
@@ -188,9 +191,9 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                 }
             }
 
-            SectionHeader("Historial de cobros", modifier = Modifier.padding(top = 8.dp))
+            SectionHeader(stringResource(R.string.detail_history_title), modifier = Modifier.padding(top = 8.dp))
             if (sub.payments.isEmpty()) {
-                Text("Todavía no hay cobros registrados. El primero será el ${Fmt.dayMonthYear(sub.nextCharge)}.", style = CwType.Body, color = OnSurfaceVariant)
+                Text(stringResource(R.string.detail_history_empty, Fmt.dayMonthYear(sub.nextCharge)), style = CwType.Body, color = OnSurfaceVariant)
             } else {
                 OutlinedGroup {
                     sub.payments.take(6).forEachIndexed { i, p ->
@@ -205,9 +208,9 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                         ) {
                             Text(Fmt.dayMonthYear(p.date), style = CwType.Body, color = OnSurface)
                             Column(horizontalAlignment = Alignment.End) {
-                                Text(Fmt.pen(p.amountPen), style = CwType.BodyStrong, color = OnSurface)
+                                Text(Fmt.pen(p.amountPen, context), style = CwType.BodyStrong, color = OnSurface)
                                 if (p.currency != Currency.PEN) {
-                                    Text("${Fmt.money(p.amount, p.currency)} · TC ${Fmt.rate(p.rate)}", style = CwType.Caption, color = OnSurfaceVariant)
+                                    Text(stringResource(R.string.detail_history_fx, Fmt.money(p.amount, p.currency, context), Fmt.rate(p.rate, context)), style = CwType.Caption, color = OnSurfaceVariant)
                                 }
                             }
                         }
@@ -216,28 +219,28 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
             }
 
             if (sub.notes.isNotBlank()) {
-                SectionHeader("Notas", modifier = Modifier.padding(top = 8.dp))
+                SectionHeader(stringResource(R.string.detail_notes_title), modifier = Modifier.padding(top = 8.dp))
                 Text("\"${sub.notes}\"", style = CwType.Body, color = OnSurface)
             }
 
             Spacer(Modifier.height(20.dp))
-            SecondaryButton("Editar", onClick = { actions.openEdit(sub.id) }, icon = R.drawable.ic_edit, height = 48.dp, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth())
+            SecondaryButton(stringResource(R.string.common_edit), onClick = { actions.openEdit(sub.id) }, icon = R.drawable.ic_edit, height = 48.dp, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
             if (sub.cancelled && !state.backendMode) {
                 PrimaryButton(
-                    "Reactivar suscripción",
+                    stringResource(R.string.detail_reactivate_btn),
                     onClick = {
                         vm.setCancelled(sub.id, false)
-                        actions.snack("${sub.name} se reactivó.")
+                        actions.snack(context.getString(R.string.detail_reactivated_snack, sub.name))
                     },
                     icon = R.drawable.ic_restart_alt,
                     height = 48.dp,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-            } else if(!sub.cancelled) {
+            } else if (!sub.cancelled) {
                 CwTextButton(
-                    "Cancelar suscripción",
+                    stringResource(R.string.detail_cancel_btn),
                     onClick = { confirmCancel = true },
                     icon = R.drawable.ic_cancel,
                     iconTint = Error,
@@ -250,18 +253,20 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
 
     if (confirmCancel) {
         ConfirmDialog(
-            title = "¿Cancelar ${sub.name}?",
-            body = "Dejaremos de contarla en tu gasto mensual y apagaremos sus recordatorios. " +
-                "Recuerda cancelarla también en ${sub.name}: CraveWallet no accede a tu banco.",
-            confirm = "Cancelar suscripción",
-            dismiss = "Volver",
+            title = stringResource(R.string.detail_confirm_cancel_title, sub.name),
+            body = stringResource(R.string.detail_confirm_cancel_body, sub.name),
+            confirm = stringResource(R.string.detail_cancel_btn),
+            dismiss = stringResource(R.string.common_back),
             onConfirm = {
                 confirmCancel = false
                 vm.cancel(sub.id) {
-                if(state.backendMode) actions.snack("${sub.name} cancelada en tu cuenta.")
-                else actions.snack("${sub.name} cancelada. Ahorras ${Fmt.pen(state.monthlyPen(sub))} al mes.", "Deshacer") {
-                    vm.setCancelled(sub.id, false)
-                }
+                    if (state.backendMode) actions.snack(context.getString(R.string.detail_cancelled_remote_snack, sub.name))
+                    else actions.snack(
+                        context.getString(R.string.detail_cancelled_local_snack, sub.name, Fmt.pen(state.monthlyPen(sub), context)),
+                        context.getString(R.string.common_undo),
+                    ) {
+                        vm.setCancelled(sub.id, false)
+                    }
                 }
             },
             onDismiss = { confirmCancel = false },
@@ -269,15 +274,18 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
     }
     if (confirmDelete) {
         ConfirmDialog(
-            title = "¿Eliminar ${sub.name}?",
-            body = "Se borrará del registro junto con su historial de cobros.",
-            confirm = "Eliminar",
-            dismiss = "Volver",
+            title = stringResource(R.string.detail_confirm_delete_title, sub.name),
+            body = stringResource(R.string.detail_confirm_delete_body),
+            confirm = stringResource(R.string.common_delete),
+            dismiss = stringResource(R.string.common_back),
             onConfirm = {
                 confirmDelete = false
                 val backup = sub
                 vm.delete(sub.id)
-                actions.snack("${sub.name} eliminada.", "Deshacer") { vm.restore(backup.copy(calendarEventId = null)) }
+                actions.snack(
+                    context.getString(R.string.detail_deleted_snack, sub.name),
+                    context.getString(R.string.common_undo),
+                ) { vm.restore(backup.copy(calendarEventId = null)) }
             },
             onDismiss = { confirmDelete = false },
         )

@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
@@ -85,7 +86,7 @@ private fun FieldError(text: String) {
     }
 }
 
-/** Campo de texto del Design System: etiqueta arriba, borde de 1 dp, foco y error con 2 dp. */
+/** Design System text field: label above, 1 dp border, focus and error with 2 dp. */
 @Composable
 fun CwTextField(
     label: String,
@@ -147,7 +148,7 @@ fun CwTextField(
     }
 }
 
-/** Campo de solo lectura que abre un selector (fecha, opciones). */
+/** Read-only field that opens a picker (date, options). */
 @Composable
 fun CwPickerField(
     label: String,
@@ -186,10 +187,10 @@ fun CwPickerField(
     }
 }
 
-/** Opción de un menú desplegable: código corto + descripción opcional. */
+/** Dropdown menu option: short code + optional description. */
 data class Choice<T>(val value: T, val title: String, val subtitle: String? = null)
 
-/** Campo desplegable (Moneda, Frecuencia, Categoría) con menú anclado debajo. */
+/** Dropdown field (Currency, Frequency, Category) with anchored menu below. */
 @Composable
 fun <T> CwDropdownField(
     label: String,
@@ -248,7 +249,7 @@ fun <T> CwDropdownField(
     }
 }
 
-/** Barra de búsqueda con ícono de lupa. */
+/** Search bar with magnifying glass icon. */
 @Composable
 fun CwSearchBar(
     value: String,
@@ -259,6 +260,7 @@ fun CwSearchBar(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val clearSearchLabel = stringResource(R.string.common_clear_search)
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -289,25 +291,24 @@ fun CwSearchBar(
                         Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .clickable(role = Role.Button, onClickLabel = "Borrar búsqueda") { onValueChange("") },
+                            .clickable(role = Role.Button, onClickLabel = clearSearchLabel) { onValueChange("") },
                         contentAlignment = Alignment.Center,
-                    ) { CwIcon(R.drawable.ic_close, size = 20.dp, tint = OnSurfaceVariant) }
+                    ) { CwIcon(R.drawable.ic_close, size = 20.dp, tint = OnSurfaceVariant, contentDescription = clearSearchLabel) }
                 }
             }
         },
     )
 }
 
-/** Stepper horizontal de 3 pasos del alta. */
+/** 3-step horizontal stepper for add sheet. */
 @Composable
 fun Stepper(current: Int, labels: List<String>, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().height(48.dp)) {
-        // Conectores
+        // Connectors
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(top = 11.dp)
-                // centro del círculo (16 + 48) + radio (12) + separación (8)
                 .padding(horizontal = 84.dp),
             horizontalArrangement = Arrangement.spacedBy(40.dp),
         ) {

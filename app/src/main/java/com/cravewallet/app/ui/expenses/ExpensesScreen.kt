@@ -1,5 +1,6 @@
 package com.cravewallet.app.ui.expenses
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cravewallet.app.AppViewModel
@@ -57,10 +60,15 @@ import com.cravewallet.app.ui.theme.Primary
 import com.cravewallet.app.ui.theme.PrimaryContainer
 import com.cravewallet.app.ui.theme.Surface
 
-private enum class SortBy(val label: String) { NEXT("Próximo cobro"), AMOUNT("Monto"), NAME("Nombre") }
+private enum class SortBy(@param:StringRes val labelRes: Int) {
+    NEXT(R.string.expenses_sort_next),
+    AMOUNT(R.string.expenses_sort_amount),
+    NAME(R.string.expenses_sort_name),
+}
 
 @Composable
 fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focusSearch: Boolean) {
+    val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf<Category?>(null) }
     var status by rememberSaveable { mutableStateOf<SubStatus?>(null) }
@@ -73,7 +81,8 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
 
     val filtered = state.subscriptions
         .filter { s ->
-            (query.isBlank() || s.name.contains(query.trim(), true) || s.category.label.contains(query.trim(), true)) &&
+            val q = query.trim()
+            (q.isBlank() || s.name.contains(q, true) || s.category.legacyLabel.contains(q, true) || s.category.label(context).contains(q, true)) &&
                 (category == null || s.category == category) &&
                 (status == null || state.status(s) == status)
         }
@@ -88,9 +97,9 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
         )
 
     Column(Modifier.fillMaxSize()) {
-        CwTopBar("Gastos", actions = {
+        CwTopBar(stringResource(R.string.expenses_title), actions = {
             Box {
-                IconButton(onClick = { sortMenu = true }) { CwIcon(R.drawable.ic_sort, contentDescription = "Ordenar") }
+                IconButton(onClick = { sortMenu = true }) { CwIcon(R.drawable.ic_sort, contentDescription = stringResource(R.string.common_sort)) }
                 SortMenu(sortMenu, sort, onSelect = { sort = it; sortMenu = false }, onDismiss = { sortMenu = false })
             }
         })
@@ -98,37 +107,42 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
         if (state.subscriptions.isEmpty()) {
             EmptyState(
                 icon = R.drawable.ic_receipt_long,
-                title = "Aún no tienes gastos registrados.",
-                body = "Agrega tu primera suscripción y toma el control.",
+                title = stringResource(R.string.home_empty_title),
+                body = stringResource(R.string.home_empty_body),
                 modifier = Modifier.padding(top = 48.dp, start = 16.dp, end = 16.dp),
                 action = {
-                    PrimaryButton("Agregar mi primera suscripción", onClick = actions.openAdd, icon = R.drawable.ic_add, modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth())
+                    PrimaryButton(
+                        stringResource(R.string.home_empty_cta),
+                        onClick = actions.openAdd,
+                        icon = R.drawable.ic_add,
+                        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+                    )
                 },
             )
             return@Column
         }
 
-        CwSearchBar(query, { query = it }, "Buscar por nombre o categoría", Modifier.padding(horizontal = 16.dp), focusRequester = focus)
+        CwSearchBar(query, { query = it }, stringResource(R.string.expenses_search_placeholder), Modifier.padding(horizontal = 16.dp), focusRequester = focus)
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                CwChip("Todas", selected = category == null && status == null, showCheck = true) { category = null; status = null }
+                CwChip(stringResource(R.string.expenses_filter_all), selected = category == null && status == null, showCheck = true) { category = null; status = null }
             }
             item {
                 Box {
                     CwChip(
-                        status?.label ?: "Estado",
+                        status?.let { stringResource(it.labelRes) } ?: stringResource(R.string.expenses_filter_status),
                         selected = status != null,
                         trailing = R.drawable.ic_expand_more,
                     ) { statusMenu = true }
                     DropdownMenu(statusMenu, onDismissRequest = { statusMenu = false }, containerColor = Surface) {
-                        DropdownMenuItem(text = { Text("Todos los estados", style = CwType.Body) }, onClick = { status = null; statusMenu = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.expenses_filter_all_statuses), style = CwType.Body) }, onClick = { status = null; statusMenu = false })
                         listOf(SubStatus.ACTIVA, SubStatus.COBRO_HOY, SubStatus.PRONTO, SubStatus.SIN_USAR, SubStatus.CANCELADA).forEach { s ->
                             DropdownMenuItem(
-                                text = { Text(s.label, style = CwType.Body) },
+                                text = { Text(stringResource(s.labelRes), style = CwType.Body) },
                                 leadingIcon = { CwIcon(s.icon, size = 18.dp, tint = s.container) },
                                 trailingIcon = if (status == s) { { CwIcon(R.drawable.ic_check, size = 18.dp, tint = Primary) } } else null,
                                 onClick = { status = s; statusMenu = false },
@@ -138,7 +152,7 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
                 }
             }
             items(Category.entries) { c ->
-                CwChip(c.label, selected = category == c) { category = if (category == c) null else c }
+                CwChip(stringResource(c.labelRes), selected = category == c) { category = if (category == c) null else c }
             }
         }
 
@@ -151,7 +165,7 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("${active.size} activas · ${Fmt.pen(state.monthlyTotal)} al mes", style = CwType.Caption, color = OnSurfaceVariant)
+            Text(stringResource(R.string.expenses_active_summary, active.size, Fmt.pen(state.monthlyTotal, context)), style = CwType.Caption, color = OnSurfaceVariant)
             Box {
                 Row(
                     Modifier
@@ -162,14 +176,15 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     CwIcon(R.drawable.ic_sort, size = 18.dp, tint = Primary)
-                    Text(sort.label, style = CwType.BodyStrong, color = Primary)
+                    Text(stringResource(sort.labelRes), style = CwType.BodyStrong, color = Primary)
                 }
             }
         }
 
         if (filtered.isEmpty()) {
             Text(
-                if (query.isNotBlank()) "No encontramos «${query.trim()}». Prueba con otro nombre o categoría." else "No hay suscripciones con este filtro.",
+                if (query.isNotBlank()) stringResource(R.string.expenses_empty_search, query.trim())
+                else stringResource(R.string.expenses_empty_filter),
                 style = CwType.Body,
                 color = OnSurfaceVariant,
                 modifier = Modifier.padding(16.dp),
@@ -186,13 +201,13 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
                 } else {
                     val unused = sub.isUnused
                     SwipeActionCard(
-                        actionLabel = if (unused) "En uso" else "Sin usar",
+                        actionLabel = stringResource(if (unused) R.string.expenses_swipe_in_use else R.string.expenses_swipe_unused),
                         actionIcon = if (unused) R.drawable.ic_check_circle else R.drawable.ic_visibility_off,
                         onAction = {
                             vm.setUnused(sub.id, !unused)
                             actions.snack(
-                                if (unused) "${sub.name} vuelve a estar en uso." else "${sub.name} marcada como sin usar.",
-                                action = "Deshacer",
+                                context.getString(if (unused) R.string.expenses_snack_in_use else R.string.expenses_snack_unused, sub.name),
+                                action = context.getString(R.string.common_undo),
                             ) { vm.setUnused(sub.id, unused) }
                         },
                     ) {
@@ -207,10 +222,10 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
 @Composable
 private fun SortMenu(expanded: Boolean, current: SortBy, onSelect: (SortBy) -> Unit, onDismiss: () -> Unit) {
     DropdownMenu(expanded, onDismissRequest = onDismiss, containerColor = Surface) {
-        Text("Ordenar por", style = CwType.Caption, color = OnSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+        Text(stringResource(R.string.expenses_sort_by), style = CwType.Caption, color = OnSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
         SortBy.entries.forEach { s ->
             DropdownMenuItem(
-                text = { Text(s.label, style = CwType.Body, fontWeight = if (s == current) FontWeight.SemiBold else FontWeight.Normal) },
+                text = { Text(stringResource(s.labelRes), style = CwType.Body, fontWeight = if (s == current) FontWeight.SemiBold else FontWeight.Normal) },
                 trailingIcon = if (s == current) { { CwIcon(R.drawable.ic_check, size = 18.dp, tint = Primary) } } else null,
                 onClick = { onSelect(s) },
             )

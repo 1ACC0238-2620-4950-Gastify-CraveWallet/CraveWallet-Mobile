@@ -2,6 +2,7 @@ package com.cravewallet.app.data
 
 import android.content.Context
 import com.cravewallet.app.BuildConfig
+import com.cravewallet.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -17,7 +18,7 @@ import java.net.URL
 class ApiException(val status: Int, message: String) : Exception(message)
 
 /** REST transport. Refresh is serialized because each refresh token is single-use. */
-class BackendApi(context: Context) {
+class BackendApi(private val context: Context) {
     private val prefs = context.getSharedPreferences("backend_session", Context.MODE_PRIVATE)
     private val refreshLock = Mutex()
     private val client = OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS)
@@ -30,10 +31,14 @@ class BackendApi(context: Context) {
     fun configure(url: String) {
         val parsed = URL(url.trim())
         require(parsed.protocol == "https" || (BuildConfig.DEBUG && parsed.protocol == "http")) {
-            "Utiliza HTTPS para conectarte al servidor."
+            context.getString(R.string.err_https_required)
         }
-        require(parsed.userInfo == null && parsed.query == null && parsed.ref == null) { "La URL no debe contener credenciales ni parámetros." }
-        require(parsed.path.isEmpty() || parsed.path == "/") { "Escribe solo la dirección y el puerto del servidor." }
+        require(parsed.userInfo == null && parsed.query == null && parsed.ref == null) {
+            context.getString(R.string.err_url_no_credentials)
+        }
+        require(parsed.path.isEmpty() || parsed.path == "/") {
+            context.getString(R.string.err_url_host_port_only)
+        }
         prefs.edit().putString("url", url.trim().trimEnd('/')).commit()
     }
 
@@ -53,7 +58,7 @@ class BackendApi(context: Context) {
     }
 
     suspend fun request(method: String, path: String, body: JSONObject? = null): JSONObject = withContext(Dispatchers.IO) {
-        val token = prefs.getString("access", null) ?: throw ApiException(401, "Inicia sesión para continuar.")
+        val token = prefs.getString("access", null) ?: throw ApiException(401, context.getString(R.string.err_sign_in_required))
         try { raw(method, path, body, token) }
         catch (e: ApiException) {
             if (e.status != 401) throw e
@@ -86,15 +91,15 @@ class BackendApi(context: Context) {
                 val detail = runCatching { JSONObject(text).optString("detail", "") }.getOrNull()
                     ?.takeUnless { it.isBlank() || it == "null" }
                 val message = when (status) {
-                    401 -> "La sesión o las credenciales no son válidas."
-                    404 -> if (path == "/api/v1/premium/checkout") "El servidor de esta sesión aún no ofrece el pago de Premium."
-                        else "No se encontró el registro en tu cuenta."
+                    401 -> context.getString(R.string.err_invalid_session)
+                    404 -> if (path == "/api/v1/premium/checkout") context.getString(R.string.err_premium_checkout_not_found)
+                        else context.getString(R.string.err_record_not_found)
                     503 -> if (path.startsWith("/api/v1/premium/")) {
-                        detail ?: "El servidor no pudo completar la operación de Premium (503). Inténtalo nuevamente."
+                        detail ?: context.getString(R.string.err_premium_503)
                     } else {
-                        "El tipo de cambio no está disponible. Intenta actualizarlo más tarde."
+                        context.getString(R.string.err_fx_503)
                     }
-                    else -> detail ?: "No se pudo completar la operación ($status)."
+                    else -> detail ?: context.getString(R.string.err_operation_status, status)
                 }
                 throw ApiException(status, message)
             }

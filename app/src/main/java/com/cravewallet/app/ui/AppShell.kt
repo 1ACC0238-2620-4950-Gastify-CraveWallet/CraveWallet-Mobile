@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -92,12 +94,12 @@ object Routes {
     fun category(c: Category) = "category/${c.name}"
 }
 
-private enum class Tab(val label: String, val route: String, @param:DrawableRes val icon: Int, @param:DrawableRes val selectedIcon: Int) {
-    INICIO("Inicio", Routes.HOME, R.drawable.ic_home, R.drawable.ic_home_fill),
-    GASTOS("Gastos", Routes.EXPENSES, R.drawable.ic_receipt_long, R.drawable.ic_receipt_long_fill),
-    ANALISIS("Análisis", Routes.ANALYSIS, R.drawable.ic_bar_chart, R.drawable.ic_bar_chart_fill),
-    DELIVERY("Delivery", Routes.DELIVERY, R.drawable.ic_moped, R.drawable.ic_moped),
-    PERFIL("Perfil", Routes.PROFILE, R.drawable.ic_person, R.drawable.ic_person_fill);
+private enum class Tab(@param:StringRes val labelRes: Int, val route: String, @param:DrawableRes val icon: Int, @param:DrawableRes val selectedIcon: Int) {
+    INICIO(R.string.tab_home, Routes.HOME, R.drawable.ic_home, R.drawable.ic_home_fill),
+    GASTOS(R.string.tab_expenses, Routes.EXPENSES, R.drawable.ic_receipt_long, R.drawable.ic_receipt_long_fill),
+    ANALISIS(R.string.tab_analysis, Routes.ANALYSIS, R.drawable.ic_bar_chart, R.drawable.ic_bar_chart_fill),
+    DELIVERY(R.string.tab_delivery, Routes.DELIVERY, R.drawable.ic_moped, R.drawable.ic_moped),
+    PERFIL(R.string.tab_profile, Routes.PROFILE, R.drawable.ic_person, R.drawable.ic_person_fill);
 
     companion object {
         fun of(route: String?): Tab = when {
@@ -111,7 +113,7 @@ private enum class Tab(val label: String, val route: String, @param:DrawableRes 
     }
 }
 
-/** Utilidades compartidas por todas las pantallas: navegación, snackbar, alta y Premium. */
+/** Shared utilities across screens: navigation, snackbar, add sheet, and Premium. */
 @Stable
 class AppActions(
     val nav: NavHostController,
@@ -175,7 +177,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
                 checkoutOpened = true
             } catch (_: ActivityNotFoundException) {
-                throw IllegalStateException("Instala un navegador para abrir el pago de Mercado Pago.")
+                throw IllegalStateException(context.getString(R.string.shell_no_browser_error))
             }
         }
     }
@@ -193,7 +195,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
         )
     }
 
-    // Abrir el detalle desde una notificación
+    // Open detail from notification
     LaunchedEffect(openSubscriptionId) {
         if (openSubscriptionId != null && vm.subscription(openSubscriptionId) != null) {
             nav.navigate(Routes.detail(openSubscriptionId))
@@ -224,14 +226,15 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
         },
         floatingActionButton = {
             if (showFab && hasSubs) {
+                val addLabel = stringResource(R.string.common_add)
                 ExtendedFloatingActionButton(
                     onClick = actions.openAdd,
                     containerColor = Accent,
                     contentColor = OnSurface,
                     shape = RoundedCornerShape(16.dp),
                     elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
-                    icon = { CwIcon(R.drawable.ic_add, tint = OnSurface) },
-                    text = { Text("Agregar", style = CwType.Button) },
+                    icon = { CwIcon(R.drawable.ic_add, tint = OnSurface, contentDescription = addLabel) },
+                    text = { Text(addLabel, style = CwType.Button) },
                 )
             }
         },
@@ -239,9 +242,9 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
     ) { padding ->
         androidx.compose.foundation.layout.Column {
         if(apiBusy) androidx.compose.material3.LinearProgressIndicator(modifier=Modifier.fillMaxWidth())
-        if(state.backendMode && !state.conversionAvailable) Text("Conversión no disponible. Los importes originales se conservan.",modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
-        if(state.backendMode && state.rateStale) Text("Se utiliza la última cotización disponible. Puedes actualizarla desde Perfil.",modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
-        if(!state.backendMode) Text("Demostración · datos locales",modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
+        if(state.backendMode && !state.conversionAvailable) Text(stringResource(R.string.shell_conversion_unavailable_banner),modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
+        if(state.backendMode && state.rateStale) Text(stringResource(R.string.shell_rate_stale_banner),modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
+        if(!state.backendMode) Text(stringResource(R.string.shell_demo_banner),modifier=Modifier.padding(8.dp),color=OnSurfaceVariant)
         NavHost(nav, startDestination = Routes.HOME, modifier = Modifier.weight(1f).padding(padding)) {
             composable(Routes.HOME) { HomeScreen(state, actions) }
             composable(
@@ -264,7 +267,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
                 if (category != null) CategoryDetailScreen(category, state, actions)
             }
             composable(Routes.REMINDERS) { RemindersScreen(state, vm, actions) }
-            composable(Routes.DELIVERY) { if(vm.connected) DeliveryScreen(vm) else Text("Inicia sesión para registrar gastos en el servidor.",modifier=Modifier.padding(16.dp)) }
+            composable(Routes.DELIVERY) { if(vm.connected) DeliveryScreen(vm) else Text(stringResource(R.string.shell_delivery_sign_in_prompt),modifier=Modifier.padding(16.dp)) }
         }
         }
     }
@@ -279,6 +282,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
         )
     }
     premiumReason?.let { reason ->
+        val activatedSnack = stringResource(R.string.shell_premium_activated_snack)
         PremiumSheet(
             reason = reason,
             state = state,
@@ -288,7 +292,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
                 if (vm.connected) openCheckout()
                 else {
                     vm.activateDemoPremium()
-                    actions.snack("¡Listo! Ya tienes CraveWallet Premium.")
+                    actions.snack(activatedSnack)
                 }
             },
             onDismiss = { premiumReason = null },
@@ -303,6 +307,7 @@ private fun BottomNav(current: Tab, state: AppState, onSelect: (Tab) -> Unit) {
     NavigationBar(containerColor = Surface, tonalElevation = 0.dp) {
         Tab.entries.forEach { tab ->
             val selected = tab == current
+            val label = stringResource(tab.labelRes)
             NavigationBarItem(
                 selected = selected,
                 onClick = { onSelect(tab) },
@@ -313,16 +318,16 @@ private fun BottomNav(current: Tab, state: AppState, onSelect: (Tab) -> Unit) {
                                 Text("$alerts", fontWeight = FontWeight.Bold)
                             }
                             tab == Tab.ANALISIS && !state.profile.premium -> Badge(containerColor = OnSurface, contentColor = Color.White) {
-                                CwIcon(R.drawable.ic_lock_fill, size = 10.dp, tint = Color.White)
+                                CwIcon(R.drawable.ic_lock_fill, size = 10.dp, tint = Color.White, contentDescription = stringResource(R.string.common_premium))
                             }
                         }
                     }) {
-                        CwIcon(if (selected) tab.selectedIcon else tab.icon, tint = if (selected) OnPrimaryContainer else OnSurfaceVariant)
+                        CwIcon(if (selected) tab.selectedIcon else tab.icon, tint = if (selected) OnPrimaryContainer else OnSurfaceVariant, contentDescription = label)
                     }
                 },
                 label = {
                     Text(
-                        tab.label,
+                        label,
                         style = CwType.Caption,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                         color = if (selected) OnSurface else OnSurfaceVariant,
@@ -333,4 +338,3 @@ private fun BottomNav(current: Tab, state: AppState, onSelect: (Tab) -> Unit) {
         }
     }
 }
-

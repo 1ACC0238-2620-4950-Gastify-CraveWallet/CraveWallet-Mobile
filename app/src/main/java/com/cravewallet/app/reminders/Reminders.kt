@@ -33,7 +33,7 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.TimeZone
 
-/** Próximo aviso calculado para una suscripción. */
+/** Upcoming calculated reminder for a subscription. */
 data class UpcomingReminder(val subscription: Subscription, val at: LocalDateTime)
 
 object ReminderPlanner {
@@ -65,7 +65,7 @@ object Notifications {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
-    /** El usuario puede tener el permiso pero haber apagado las notificaciones en Ajustes. */
+    /** The user might have granted the permission but disabled notifications in system settings. */
     fun areEnabled(context: Context): Boolean =
         hasPermission(context) && NotificationManagerCompat.from(context).areNotificationsEnabled()
 
@@ -87,7 +87,7 @@ object Notifications {
         try {
             NotificationManagerCompat.from(context).notify(id, notification)
         } catch (_: SecurityException) {
-            // El permiso se revocó entre la verificación y el aviso.
+            // Permission was revoked between check and notification.
         }
     }
 }
@@ -100,15 +100,15 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val chargeDate = LocalDate.parse(inputData.getString(KEY_DATE))
         val days = ChronoUnit.DAYS.between(LocalDate.now(), chargeDate)
         val whenText = when (days) {
-            0L -> "Hoy"
-            1L -> "Mañana"
-            else -> "En $days días"
+            0L -> applicationContext.getString(R.string.fmt_today)
+            1L -> applicationContext.getString(R.string.fmt_tomorrow)
+            else -> applicationContext.getString(R.string.fmt_in_days, days)
         }
         Notifications.show(
             applicationContext,
             id.hashCode(),
-            "$whenText te cobran $name",
-            "$amount el ${Fmt.dayMonth(chargeDate)}. ¿Lo dejamos pasar? Revísalo antes del cobro.",
+            applicationContext.getString(R.string.notif_charge_title, whenText, name),
+            applicationContext.getString(R.string.notif_charge_body, amount, Fmt.dayMonth(chargeDate)),
             id,
         )
         return Result.success()
@@ -122,7 +122,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 }
 
-/** Programa (o cancela) los avisos push con WorkManager según los ajustes actuales. */
+/** Schedules (or cancels) push notifications with WorkManager according to current settings. */
 object ReminderScheduler {
     private fun workName(id: String) = "reminder-$id"
 
@@ -151,7 +151,7 @@ object ReminderScheduler {
                 workDataOf(
                     ReminderWorker.KEY_ID to sub.id,
                     ReminderWorker.KEY_NAME to sub.name,
-                    ReminderWorker.KEY_AMOUNT to Fmt.pen(state.pen(sub)),
+                    ReminderWorker.KEY_AMOUNT to Fmt.pen(state.pen(sub), context),
                     ReminderWorker.KEY_DATE to sub.nextCharge.toString(),
                 ),
             )
@@ -164,7 +164,7 @@ object ReminderScheduler {
     }
 }
 
-/** Crea un único evento por cobro en el calendario del teléfono. No lee ni cambia otros eventos. */
+/** Creates a single event per charge in the phone's calendar. Does not read or modify other events. */
 object CalendarHelper {
 
     fun hasPermission(context: Context): Boolean =
@@ -203,8 +203,8 @@ object CalendarHelper {
     private const val LOCAL_ACCOUNT = "CraveWallet"
 
     /**
-     * Si el teléfono no tiene ninguna cuenta de calendario (p. ej. un emulador sin cuenta de Google),
-     * crea un calendario local "CraveWallet" para poder agendar los cobros igual.
+     * If the phone has no calendar account (e.g., an emulator without a Google account),
+     * creates a local "CraveWallet" calendar to still schedule charges.
      */
     private fun createLocalCalendar(context: Context): CalendarInfo? = runCatching {
         val uri = CalendarContract.Calendars.CONTENT_URI.buildUpon()
@@ -225,23 +225,23 @@ object CalendarHelper {
             put(CalendarContract.Calendars.CALENDAR_TIME_ZONE, TimeZone.getDefault().id)
         }
         val id = context.contentResolver.insert(uri, values)?.lastPathSegment?.toLong() ?: return@runCatching null
-        CalendarInfo(id, "en este teléfono", LOCAL_ACCOUNT)
+        CalendarInfo(id, context.getString(R.string.cal_local_account_label), LOCAL_ACCOUNT)
     }.getOrNull()
 
-    /** Calendario donde se guardan los eventos: el principal del teléfono o, si no hay, uno local. */
+    /** Target calendar for events: phone's primary calendar or, if none, a local one. */
     fun targetCalendar(context: Context): CalendarInfo? =
         primaryCalendar(context) ?: if (hasPermission(context)) createLocalCalendar(context) else null
 
-    /** Inserta el evento y devuelve su id, o null si no hay calendario disponible. */
+    /** Inserts the event and returns its id, or null if no calendar is available. */
     fun insertEvent(context: Context, sub: Subscription, amountText: String, at: LocalDateTime): Long? {
         val calendar = targetCalendar(context) ?: return null
         val start = at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val values = ContentValues().apply {
             put(CalendarContract.Events.CALENDAR_ID, calendar.id)
-            put(CalendarContract.Events.TITLE, "Cobro de ${sub.name}: $amountText")
+            put(CalendarContract.Events.TITLE, context.getString(R.string.cal_event_title, sub.name, amountText))
             put(
                 CalendarContract.Events.DESCRIPTION,
-                "CraveWallet: ${sub.name} se cobra el ${Fmt.weekdayDate(sub.nextCharge)}. Revísalo antes del cobro.",
+                context.getString(R.string.cal_event_desc, sub.name, Fmt.weekdayDate(sub.nextCharge)),
             )
             put(CalendarContract.Events.DTSTART, start)
             put(CalendarContract.Events.DTEND, start + 30 * 60 * 1000)

@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.cravewallet.app.AppViewModel
@@ -52,13 +54,12 @@ import com.cravewallet.app.ui.theme.OnSurfaceVariant
 import com.cravewallet.app.ui.theme.Primary
 import com.cravewallet.app.ui.theme.Surface
 import com.cravewallet.app.ui.theme.SurfaceVariant
-import androidx.compose.ui.platform.LocalContext
 import java.time.LocalDate
 import java.time.ZoneId
 
 private enum class ProfileDialog { RATE, ACCOUNT, PREMIUM_CANCEL, PRIVACY, RESET, EMPTY }
 
-/** P1 · Perfil. */
+/** P1 · Profile. */
 @Composable
 fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
     val context = LocalContext.current
@@ -66,11 +67,11 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
     val premiumStatus = state.premiumStatus
     val periodEnd = premiumStatus?.periodEndsAt?.atZone(ZoneId.of("America/Lima"))?.toLocalDate()
     val r = state.reminders
-    val calendarText = if (r.calendarEnabled && CalendarHelper.hasPermission(context)) "Calendario activo" else "Calendario desactivado"
-    val pushText = if (r.pushEnabled) "push activado" else "push desactivado"
+    val calendarText = stringResource(if (r.calendarEnabled && CalendarHelper.hasPermission(context)) R.string.profile_cal_active else R.string.profile_cal_inactive)
+    val pushText = stringResource(if (r.pushEnabled) R.string.profile_push_active else R.string.profile_push_inactive)
 
     Column(Modifier.fillMaxSize()) {
-        CwTopBar("Perfil")
+        CwTopBar(stringResource(R.string.profile_title))
         Column(
             Modifier
                 .fillMaxSize()
@@ -92,7 +93,7 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                         Spacer(Modifier.height(4.dp))
                         if (state.profile.premium) PremiumBadge()
                         else Text(
-                            "Plan gratuito",
+                            stringResource(R.string.profile_free_plan),
                             style = CwType.Caption,
                             color = OnSurface,
                             modifier = Modifier
@@ -104,51 +105,65 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                 }
             }
 
-            GroupLabel("Preferencias")
+            GroupLabel(stringResource(R.string.profile_group_preferences))
             CwCard(Modifier.fillMaxWidth()) {
                 ListRow(
-                    "Recordatorios",
+                    stringResource(R.string.profile_row_reminders),
                     subtitle = "$calendarText · $pushText",
                     icon = R.drawable.ic_notifications,
                     onClick = { actions.nav.navigate(Routes.REMINDERS) },
                 )
                 RowDivider()
                 ListRow(
-                    "Moneda de referencia",
-                    subtitle = "Soles (PEN)",
+                    stringResource(R.string.profile_row_ref_currency),
+                    subtitle = stringResource(R.string.profile_row_ref_currency_sub),
                     icon = R.drawable.ic_currency_exchange,
-                    onClick = { actions.snack(if(state.backendMode) "La moneda de referencia es PEN. Se admiten suscripciones en PEN y USD." else "Todos los montos se muestran en soles. Los cobros en dólares o euros se convierten con el tipo de cambio del día.") },
+                    onClick = {
+                        actions.snack(
+                            context.getString(
+                                if (state.backendMode) R.string.profile_snack_currency_remote else R.string.profile_snack_currency_local
+                            )
+                        )
+                    },
                 )
                 RowDivider()
                 ListRow(
-                    "Tipo de cambio",
-                    subtitle = "Automático · S/ ${Fmt.rate(state.rates.usd)} ${Fmt.relativeDateTime(state.rates.updatedAt)}",
+                    stringResource(R.string.profile_row_fx),
+                    subtitle = stringResource(R.string.profile_row_fx_sub, Fmt.rate(state.rates.usd, context), Fmt.relativeDateTime(state.rates.updatedAt, context = context)),
                     icon = R.drawable.ic_sync,
-                    onClick = { if(state.backendMode) vm.refreshRates() else dialog = ProfileDialog.RATE },
+                    onClick = { if (state.backendMode) vm.refreshRates() else dialog = ProfileDialog.RATE },
                 )
             }
 
-            GroupLabel("Cuenta")
+            GroupLabel(stringResource(R.string.profile_group_account))
             CwCard(Modifier.fillMaxWidth()) {
-                ListRow("Datos de la cuenta", subtitle = "Nombre y correo", icon = R.drawable.ic_person, onClick = { if(state.backendMode) actions.snack("La edición del perfil todavía no está disponible.") else dialog = ProfileDialog.ACCOUNT })
+                ListRow(
+                    stringResource(R.string.profile_row_account_data),
+                    subtitle = stringResource(R.string.profile_row_account_data_sub),
+                    icon = R.drawable.ic_person,
+                    onClick = {
+                        if (state.backendMode) actions.snack(context.getString(R.string.profile_snack_edit_unavailable))
+                        else dialog = ProfileDialog.ACCOUNT
+                    },
+                )
                 RowDivider()
-                val monthlyPrice = "${Fmt.pen(state.premiumPrice)} al mes"
+                val monthlyPrice = stringResource(R.string.profile_plan_price_month, Fmt.pen(state.premiumPrice, context))
                 val planSubtitle = when {
-                    premiumStatus?.pending == true -> "Pago pendiente de confirmación"
+                    premiumStatus?.pending == true -> stringResource(R.string.profile_plan_pending)
                     state.profile.premium && !state.backendMode -> {
                         val renewal = LocalDate.now().withDayOfMonth(1).plusMonths(1)
-                        "$monthlyPrice · se renueva el ${Fmt.dayMonth(renewal)}"
+                        stringResource(R.string.profile_plan_renews, monthlyPrice, Fmt.dayMonth(renewal))
                     }
                     state.profile.premium && periodEnd != null -> {
                         val date = Fmt.dayMonth(periodEnd)
-                        if (premiumStatus.cancelAtPeriodEnd) "Acceso hasta el $date"
-                        else "$monthlyPrice · período vigente hasta el $date"
+                        if (premiumStatus.cancelAtPeriodEnd) stringResource(R.string.profile_plan_access_until, date)
+                        else stringResource(R.string.profile_plan_valid_until, monthlyPrice, date)
                     }
                     state.profile.premium -> monthlyPrice
-                    else -> "Plan gratuito · hasta ${AppState.FREE_PLAN_LIMIT} suscripciones"
+                    else -> stringResource(R.string.profile_plan_free_limit, AppState.FREE_PLAN_LIMIT)
                 }
                 ListRow(
-                    "Plan Premium",
+                    stringResource(R.string.profile_row_premium),
                     subtitle = planSubtitle,
                     icon = R.drawable.ic_workspace_premium,
                     onClick = {
@@ -157,38 +172,43 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                     },
                 )
                 RowDivider()
-                ListRow("Ayuda y privacidad", subtitle = "No pedimos acceso a tu banco", icon = R.drawable.ic_shield, onClick = { dialog = ProfileDialog.PRIVACY })
+                ListRow(
+                    stringResource(R.string.profile_row_privacy),
+                    subtitle = stringResource(R.string.profile_row_privacy_sub),
+                    icon = R.drawable.ic_shield,
+                    onClick = { dialog = ProfileDialog.PRIVACY },
+                )
             }
 
-            if(state.backendMode) {
-                GroupLabel("Servidor")
+            if (state.backendMode) {
+                GroupLabel(stringResource(R.string.profile_group_server))
                 CwCard(Modifier.fillMaxWidth()) {
-                    ListRow("Actualizar datos",subtitle="Consultar tu cuenta en el servidor",icon=R.drawable.ic_sync,onClick=vm::refresh)
+                    ListRow(stringResource(R.string.profile_row_refresh), subtitle = stringResource(R.string.profile_row_refresh_sub), icon = R.drawable.ic_sync, onClick = vm::refresh)
                     RowDivider()
-                    ListRow("Cerrar sesión",subtitle=state.profile.email,icon=R.drawable.ic_logout,onClick=vm::logout)
+                    ListRow(stringResource(R.string.profile_row_logout), subtitle = state.profile.email, icon = R.drawable.ic_logout, onClick = vm::logout)
                 }
-                state.rateAttribution?.let { Text("Tipo de cambio: $it",style=CwType.Caption,modifier=Modifier.padding(vertical=8.dp)) }
+                state.rateAttribution?.let { Text(stringResource(R.string.profile_rate_attribution, it), style = CwType.Caption, modifier = Modifier.padding(vertical = 8.dp)) }
             } else {
-            GroupLabel("Demostración")
-            CwCard(Modifier.fillMaxWidth()) {
-                ListRow(
-                    "Restablecer datos de ejemplo",
-                    subtitle = "Renzo · 7 suscripciones · Premium",
-                    icon = R.drawable.ic_restart_alt,
-                    onClick = { dialog = ProfileDialog.RESET },
-                )
-                RowDivider()
-                ListRow(
-                    "Empezar sin suscripciones",
-                    subtitle = "Camila · plan gratuito, sin datos",
-                    icon = R.drawable.ic_logout,
-                    onClick = { dialog = ProfileDialog.EMPTY },
-                )
-            }
-            TextButtonForLogout(vm)
+                GroupLabel(stringResource(R.string.profile_group_demo))
+                CwCard(Modifier.fillMaxWidth()) {
+                    ListRow(
+                        stringResource(R.string.profile_row_reset_demo),
+                        subtitle = stringResource(R.string.profile_row_reset_demo_sub),
+                        icon = R.drawable.ic_restart_alt,
+                        onClick = { dialog = ProfileDialog.RESET },
+                    )
+                    RowDivider()
+                    ListRow(
+                        stringResource(R.string.profile_row_start_empty),
+                        subtitle = stringResource(R.string.profile_row_start_empty_sub),
+                        icon = R.drawable.ic_logout,
+                        onClick = { dialog = ProfileDialog.EMPTY },
+                    )
+                }
+                TextButtonForLogout(vm)
             }
             Text(
-                "CraveWallet 1.0 · Prototipo académico",
+                stringResource(R.string.profile_version_footer),
                 style = CwType.Caption,
                 color = OnSurfaceVariant,
                 modifier = Modifier.padding(vertical = 24.dp).align(Alignment.CenterHorizontally),
@@ -198,41 +218,46 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
 
     when (dialog) {
         ProfileDialog.RATE -> RateDialog(state, vm, actions) { dialog = null }
-        ProfileDialog.ACCOUNT -> AccountDialog(state.profile, onSave = { vm.setProfile(it); dialog = null; actions.snack("Datos actualizados.") }) { dialog = null }
+        ProfileDialog.ACCOUNT -> AccountDialog(
+            state.profile,
+            onSave = {
+                vm.setProfile(it)
+                dialog = null
+                actions.snack(context.getString(R.string.profile_snack_account_updated))
+            },
+        ) { dialog = null }
         ProfileDialog.PREMIUM_CANCEL -> ConfirmDialog(
-            title = "¿Cancelar Premium?",
-            body = if (state.backendMode) "Conservarás Premium hasta que termine el período pagado. La siguiente renovación se cancelará."
-            else "Volverás al plan gratuito: hasta ${AppState.FREE_PLAN_LIMIT} suscripciones y sin Análisis. Tus datos se mantienen.",
-            confirm = "Cancelar Premium",
-            dismiss = "Mantener",
+            title = stringResource(R.string.profile_cancel_premium_title),
+            body = if (state.backendMode) stringResource(R.string.profile_cancel_premium_body_remote)
+            else stringResource(R.string.profile_cancel_premium_body_local, AppState.FREE_PLAN_LIMIT),
+            confirm = stringResource(R.string.profile_cancel_premium_confirm),
+            dismiss = stringResource(R.string.profile_cancel_premium_keep),
             onConfirm = {
                 dialog = null
                 vm.cancelPremium {
-                    actions.snack(if (state.backendMode) "Renovación cancelada." else "Volviste al plan gratuito.")
+                    actions.snack(context.getString(if (state.backendMode) R.string.profile_snack_renewal_cancelled else R.string.profile_snack_back_to_free))
                 }
             },
             onDismiss = { dialog = null },
         )
         ProfileDialog.PRIVACY -> InfoDialog(
-            "Ayuda y privacidad",
-            "CraveWallet no se conecta a tu banco ni a tus tarjetas: tú registras cada suscripción. " +
-                (if(state.backendMode) "Tus suscripciones y gastos se guardan en el servidor asociado a tu cuenta. Las preferencias de recordatorios se guardan en el teléfono. " else "Los datos de demostración se guardan solo en este teléfono. ") + "El permiso de calendario se usa únicamente para crear " +
-                "un evento antes de cada cobro, y las notificaciones solo para avisarte de tus cobros.",
+            stringResource(R.string.profile_row_privacy),
+            stringResource(if (state.backendMode) R.string.profile_privacy_body_remote else R.string.profile_privacy_body_local),
         ) { dialog = null }
         ProfileDialog.RESET -> ConfirmDialog(
-            title = "¿Restablecer los datos de ejemplo?",
-            body = "Se reemplazarán tus suscripciones actuales por las 7 de ejemplo.",
-            confirm = "Restablecer",
-            dismiss = "Volver",
+            title = stringResource(R.string.profile_reset_title),
+            body = stringResource(R.string.profile_reset_body),
+            confirm = stringResource(R.string.profile_reset_confirm),
+            dismiss = stringResource(R.string.common_back),
             destructive = false,
             onConfirm = { vm.resetDemo(); dialog = null; actions.goTab(Routes.HOME) },
             onDismiss = { dialog = null },
         )
         ProfileDialog.EMPTY -> ConfirmDialog(
-            title = "¿Empezar sin suscripciones?",
-            body = "Se borrarán todas las suscripciones y pasarás al plan gratuito.",
-            confirm = "Empezar de cero",
-            dismiss = "Volver",
+            title = stringResource(R.string.profile_empty_title),
+            body = stringResource(R.string.profile_empty_body),
+            confirm = stringResource(R.string.profile_empty_confirm),
+            dismiss = stringResource(R.string.common_back),
             onConfirm = { vm.startEmpty(); dialog = null; actions.goTab(Routes.HOME) },
             onDismiss = { dialog = null },
         )
@@ -247,48 +272,54 @@ private fun GroupLabel(text: String) {
 
 @Composable
 private fun RateDialog(state: AppState, vm: AppViewModel, actions: AppActions, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf(Fmt.rate(state.rates.usd)) }
+    val context = LocalContext.current
+    var text by remember { mutableStateOf(Fmt.rate(state.rates.usd, context)) }
     var loading by remember { mutableStateOf(false) }
     val value = text.replace(',', '.').toDoubleOrNull()
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Surface,
         shape = RoundedCornerShape(24.dp),
-        title = { Text("Tipo de cambio", style = CwType.Heading, color = OnSurface) },
+        title = { Text(stringResource(R.string.profile_row_fx), style = CwType.Heading, color = OnSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Se actualiza solo cada vez que abres la app con conexión. Última actualización: ${Fmt.relativeDateTime(state.rates.updatedAt)}.",
+                    stringResource(R.string.profile_rate_dialog_body, Fmt.relativeDateTime(state.rates.updatedAt, context = context)),
                     style = CwType.Body,
                     color = OnSurface,
                 )
                 CwTextField(
-                    label = "1 USD en soles",
+                    label = stringResource(R.string.profile_rate_field_label),
                     value = text,
                     onValueChange = { text = it },
                     keyboardType = KeyboardType.Decimal,
-                    error = if (value == null || value <= 0) "Ingresa un valor válido." else null,
+                    error = if (value == null || value <= 0) stringResource(R.string.profile_rate_err_invalid) else null,
                 )
-                CwTextButton(if (loading) "Actualizando…" else "Actualizar ahora", icon = R.drawable.ic_sync, color = Primary, onClick = {
-                    loading = true
-                    vm.refreshRates { ok ->
-                        loading = false
-                        if (ok) {
-                            onDismiss()
-                            actions.snack("Tipo de cambio actualizado.")
-                        } else actions.snack("No pudimos actualizarlo. Revisa tu conexión.")
-                    }
-                })
+                CwTextButton(
+                    stringResource(if (loading) R.string.profile_rate_updating else R.string.profile_rate_update_now),
+                    icon = R.drawable.ic_sync,
+                    color = Primary,
+                    onClick = {
+                        loading = true
+                        vm.refreshRates { ok ->
+                            loading = false
+                            if (ok) {
+                                onDismiss()
+                                actions.snack(context.getString(R.string.analysis_rate_updated_snack))
+                            } else actions.snack(context.getString(R.string.profile_rate_update_failed_snack))
+                        }
+                    },
+                )
             }
         },
         confirmButton = {
-            PrimaryButton("Guardar", enabled = value != null && value > 0, height = 44.dp, shape = RoundedCornerShape(12.dp), onClick = {
+            PrimaryButton(stringResource(R.string.common_save), enabled = value != null && value > 0, height = 44.dp, shape = RoundedCornerShape(12.dp), onClick = {
                 vm.setUsdRate(value ?: return@PrimaryButton)
                 onDismiss()
-                actions.snack("Tipo de cambio fijado en S/ ${Fmt.rate(value)}.")
+                actions.snack(context.getString(R.string.profile_rate_set_snack, Fmt.rate(value, context)))
             })
         },
-        dismissButton = { CwTextButton("Cancelar", onClick = onDismiss) },
+        dismissButton = { CwTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
 }
 
@@ -301,19 +332,19 @@ private fun AccountDialog(profile: Profile, onSave: (Profile) -> Unit, onDismiss
         onDismissRequest = onDismiss,
         containerColor = Surface,
         shape = RoundedCornerShape(24.dp),
-        title = { Text("Datos de la cuenta", style = CwType.Heading, color = OnSurface) },
+        title = { Text(stringResource(R.string.profile_row_account_data), style = CwType.Heading, color = OnSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                CwTextField("Nombre", name, { name = it }, maxLength = 40)
-                CwTextField("Correo", email, { email = it }, keyboardType = KeyboardType.Email, maxLength = 60)
+                CwTextField(stringResource(R.string.profile_field_name), name, { name = it }, maxLength = 40)
+                CwTextField(stringResource(R.string.profile_field_email), email, { email = it }, keyboardType = KeyboardType.Email, maxLength = 60)
             }
         },
         confirmButton = {
-            PrimaryButton("Guardar", enabled = valid, height = 44.dp, shape = RoundedCornerShape(12.dp), onClick = {
+            PrimaryButton(stringResource(R.string.common_save), enabled = valid, height = 44.dp, shape = RoundedCornerShape(12.dp), onClick = {
                 onSave(profile.copy(name = name.trim(), email = email.trim()))
             })
         },
-        dismissButton = { CwTextButton("Cancelar", onClick = onDismiss) },
+        dismissButton = { CwTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
 }
 
@@ -325,11 +356,11 @@ fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) {
         shape = RoundedCornerShape(24.dp),
         title = { Text(title, style = CwType.Heading, color = OnSurface) },
         text = { Text(body, style = CwType.Body, color = OnSurface) },
-        confirmButton = { CwTextButton("Entendido", color = Primary, onClick = onDismiss) },
+        confirmButton = { CwTextButton(stringResource(R.string.common_got_it), color = Primary, onClick = onDismiss) },
     )
 }
 
 @Composable
 private fun TextButtonForLogout(vm: AppViewModel) {
-    CwTextButton("Salir de la demostración",onClick=vm::logout)
+    CwTextButton(stringResource(R.string.profile_exit_demo), onClick = vm::logout)
 }

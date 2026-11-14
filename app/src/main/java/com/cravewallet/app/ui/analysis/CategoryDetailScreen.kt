@@ -20,6 +20,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.cravewallet.app.R
 import com.cravewallet.app.data.Analytics
@@ -45,10 +47,11 @@ import com.cravewallet.app.ui.theme.PrimaryContainer
 import java.time.LocalDate
 import java.time.YearMonth
 
-/** N3 · Detalle de una categoría: total, últimos 6 meses y suscripciones que la componen. */
+/** N3 · Category detail: total, last 6 months, and constituent subscriptions. */
 @Composable
 fun CategoryDetailScreen(category: Category, state: AppState, actions: AppActions) {
-    // El detalle es parte de Análisis (Premium): si el plan cambió, volver a la pantalla anterior
+    val context = LocalContext.current
+    // Detail is part of Analysis (Premium): if the plan changed, go back
     LaunchedEffect(state.profile.premium) {
         if (!state.profile.premium) actions.back()
     }
@@ -61,12 +64,13 @@ fun CategoryDetailScreen(category: Category, state: AppState, actions: AppAction
     val bars = (5 downTo 0).map { back ->
         val m = current.minusMonths(back.toLong())
         val t = Analytics.categoryMonthTotal(state, category, m, today)
-        Bar(Fmt.monthShortCap(m.monthValue), t, 0, m, "${Fmt.monthShortCap(m.monthValue)} · ${Fmt.pen(t)}")
+        Bar(Fmt.monthShortCap(m.monthValue), t, 0, m, "${Fmt.monthShortCap(m.monthValue)} · ${Fmt.pen(t, context)}")
     }
     var selected by rememberSaveable { mutableIntStateOf(bars.lastIndex) }
+    val categoryLabel = stringResource(category.labelRes)
 
     Column(Modifier.fillMaxSize()) {
-        CwTopBar(category.label, onBack = actions::back)
+        CwTopBar(categoryLabel, onBack = actions::back)
         Column(
             Modifier
                 .fillMaxSize()
@@ -76,9 +80,14 @@ fun CategoryDetailScreen(category: Category, state: AppState, actions: AppAction
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 CategoryIcon(category, size = 48.dp)
                 Column {
-                    Text(Fmt.pen(total), style = CwType.Amount, color = OnSurface)
+                    Text(Fmt.pen(total, context), style = CwType.Amount, color = OnSurface)
                     Text(
-                        "${Fmt.percent(share)} de tu gasto de ${Fmt.monthLong(current.monthValue)} · ${subs.size} ${if (subs.size == 1) "suscripción" else "suscripciones"}",
+                        stringResource(
+                            if (subs.size == 1) R.string.cat_detail_subtitle_one else R.string.cat_detail_subtitle_many,
+                            Fmt.percent(share),
+                            Fmt.monthLong(current.monthValue),
+                            subs.size,
+                        ),
                         style = CwType.Caption,
                         color = OnSurfaceVariant,
                     )
@@ -87,13 +96,13 @@ fun CategoryDetailScreen(category: Category, state: AppState, actions: AppAction
             Spacer(Modifier.height(16.dp))
             CwCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Últimos 6 meses", style = CwType.BodyStrong, color = OnSurface)
+                    Text(stringResource(R.string.cat_detail_last_6_months), style = CwType.BodyStrong, color = OnSurface)
                     Spacer(Modifier.height(32.dp))
                     BarChart(bars, selected, onSelect = { selected = it }, chartHeight = 110.dp, showTooltip = selected != bars.lastIndex, tooltipDetail = { null })
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Text(Analytics.trend(bars.map { it.total }, category.label), style = CwType.Body, color = OnSurface)
+            Text(Analytics.trend(bars.map { it.total }, categoryLabel, context), style = CwType.Body, color = OnSurface)
             Spacer(Modifier.height(12.dp))
 
             if (subs.isNotEmpty()) {
@@ -116,9 +125,9 @@ fun CategoryDetailScreen(category: Category, state: AppState, actions: AppAction
                                 ProgressTrack(part.toFloat(), color = category.color, modifier = Modifier.fillMaxWidth(0.9f))
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text(Fmt.pen(monthly), style = CwType.BodyStrong, color = OnSurface)
+                                Text(Fmt.pen(monthly, context), style = CwType.BodyStrong, color = OnSurface)
                                 Text(
-                                    if (sub.currency != Currency.PEN) Fmt.money(sub.amount, sub.currency) else Fmt.percent(part),
+                                    if (sub.currency != Currency.PEN) Fmt.money(sub.amount, sub.currency, context) else Fmt.percent(part),
                                     style = CwType.Caption,
                                     color = OnSurfaceVariant,
                                 )
@@ -128,18 +137,22 @@ fun CategoryDetailScreen(category: Category, state: AppState, actions: AppAction
                 }
             }
 
-            // Aviso de suscripciones en moneda extranjera
+            // Foreign currency subscriptions notice
             subs.filter { it.currency != Currency.PEN }.forEach { sub ->
                 val variation = Analytics.variation(state, sub) ?: return@forEach
                 val (diff, last) = variation
-                val word = if (diff >= 0) "más" else "menos"
                 InfoBanner(
                     icon = R.drawable.ic_currency_exchange,
                     iconTint = Primary,
                     container = PrimaryContainer,
-                    title = "${sub.name} se cobra en ${Analytics.currencyName(sub.currency)}",
-                    body = "Este mes pagas ${Fmt.pen(kotlin.math.abs(diff))} $word que en ${Fmt.monthLong(last.date.monthValue)} por el tipo de cambio " +
-                        "(${Fmt.rate(last.rate)} → ${Fmt.rate(state.rates.rate(sub.currency))}).",
+                    title = stringResource(R.string.cat_detail_fx_title, sub.name, Analytics.currencyName(sub.currency, context)),
+                    body = stringResource(
+                        if (diff >= 0) R.string.cat_detail_fx_more else R.string.cat_detail_fx_less,
+                        Fmt.pen(kotlin.math.abs(diff), context),
+                        Fmt.monthLong(last.date.monthValue),
+                        Fmt.rate(last.rate, context),
+                        Fmt.rate(state.rates.rate(sub.currency), context),
+                    ),
                     modifier = Modifier.padding(top = 12.dp),
                 )
             }

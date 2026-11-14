@@ -1,8 +1,6 @@
 package com.cravewallet.app
 
-import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -14,7 +12,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.cravewallet.app.ui.CraveWalletApp
 import com.cravewallet.app.ui.theme.CraveWalletTheme
-import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -35,12 +32,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** La app está pensada para Perú: selectores de fecha y hora siempre en español. */
-    override fun attachBaseContext(newBase: Context) {
-        val config = Configuration(newBase.resources.configuration).apply { setLocale(APP_LOCALE) }
-        super.attachBaseContext(newBase.createConfigurationContext(config))
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.getStringExtra(EXTRA_SUBSCRIPTION_ID)?.let { deepLinkId = it }
@@ -48,6 +39,5 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_SUBSCRIPTION_ID = "subscription_id"
-        val APP_LOCALE: Locale = Locale.forLanguageTag("es-PE")
     }
 }

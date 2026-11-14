@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -81,7 +82,7 @@ fun CwIcon(
     )
 }
 
-/** Avatar cuadrado con las iniciales y el color de la marca del servicio. */
+/** Square avatar with service initials and brand color. */
 @Composable
 fun ServiceAvatar(
     name: String,
@@ -109,7 +110,7 @@ fun ServiceAvatar(
     }
 }
 
-/** Círculo con el ícono de la categoría. */
+/** Circle with the category icon. */
 @Composable
 fun CategoryIcon(category: Category, modifier: Modifier = Modifier, size: Dp = 40.dp, filled: Boolean = true) {
     Box(
@@ -123,12 +124,14 @@ fun CategoryIcon(category: Category, modifier: Modifier = Modifier, size: Dp = 4
             category.icon,
             size = size * 0.55f,
             tint = if (filled) (if (category == Category.DELIVERY || category == Category.MUSICA) OnSurface else Color.White) else category.color,
+            contentDescription = stringResource(category.labelRes),
         )
     }
 }
 
 @Composable
 fun StatusChip(status: SubStatus, modifier: Modifier = Modifier) {
+    val label = stringResource(status.labelRes)
     Row(
         modifier = modifier
             .height(22.dp)
@@ -139,7 +142,7 @@ fun StatusChip(status: SubStatus, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         CwIcon(status.icon, size = 14.dp, tint = status.content)
-        Text(status.label, style = CwType.Caption, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, color = status.content)
+        Text(label, style = CwType.Caption, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, color = status.content)
     }
 }
 
@@ -155,7 +158,7 @@ fun PremiumBadge(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         CwIcon(R.drawable.ic_workspace_premium_fill, size = 16.dp, tint = com.cravewallet.app.ui.theme.Accent)
-        Text("Premium", style = CwType.Caption, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, color = OnSurface)
+        Text(stringResource(R.string.common_premium), style = CwType.Caption, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, color = OnSurface)
     }
 }
 
@@ -191,7 +194,7 @@ fun SectionHeader(
     }
 }
 
-/** Tarjeta blanca con sombra suave (elevación 1 del Design System). */
+/** White card with soft shadow (Design System elevation 1). */
 @Composable
 fun CwCard(
     modifier: Modifier = Modifier,
@@ -309,7 +312,7 @@ fun CwTextButton(
     }
 }
 
-/** Enlace subrayado (p. ej. "Ver análisis", "Revisar"). */
+/** Underlined link text (e.g. "View analysis", "Review"). */
 @Composable
 fun LinkText(
     text: String,
@@ -352,7 +355,7 @@ fun CwSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mod
     )
 }
 
-/** Fila de lista con ícono en círculo, título, subtítulo y contenido al final. */
+/** List row with circular icon, title, subtitle, and trailing content. */
 @Composable
 fun ListRow(
     title: String,
@@ -394,7 +397,7 @@ fun ListRow(
 fun RowDivider(modifier: Modifier = Modifier) =
     HorizontalDivider(modifier.padding(horizontal = 16.dp), thickness = 1.dp, color = OutlineVariant)
 
-/** Banner informativo sobre surface-variant (alertas, consejos, estados). */
+/** Info banner over surface-variant (alerts, tips, statuses). */
 @Composable
 fun InfoBanner(
     @DrawableRes icon: Int,
@@ -440,7 +443,7 @@ fun ProgressTrack(fraction: Float, color: Color, modifier: Modifier = Modifier, 
     }
 }
 
-/** Barra superior de pantallas secundarias: atrás + título + acciones. */
+/** Secondary screen top bar: back + title + actions. */
 @Composable
 fun CwTopBar(
     title: String,
@@ -456,7 +459,7 @@ fun CwTopBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
-            IconButton(onClick = onBack) { CwIcon(R.drawable.ic_arrow_back, contentDescription = "Atrás") }
+            IconButton(onClick = onBack) { CwIcon(R.drawable.ic_arrow_back, contentDescription = stringResource(R.string.common_back)) }
             Spacer(Modifier.width(4.dp))
         }
         Text(
@@ -473,7 +476,7 @@ fun CwTopBar(
     }
 }
 
-/** Estado vacío centrado con ícono grande. */
+/** Centered empty state with large icon. */
 @Composable
 fun EmptyState(
     @DrawableRes icon: Int,
@@ -501,7 +504,7 @@ fun EmptyState(
     }
 }
 
-/** Ítem de lista con check (beneficios de Premium). */
+/** Checklist item (Premium benefits). */
 @Composable
 fun CheckItem(text: String, modifier: Modifier = Modifier) {
     Row(modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -510,7 +513,7 @@ fun CheckItem(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Contenedor redondeado con borde para agrupar filas (Recordatorio, Historial, etc.). */
+/** Rounded outlined container for grouping rows (Reminder, History, etc.). */
 @Composable
 fun OutlinedGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(
@@ -521,7 +524,7 @@ fun OutlinedGroup(modifier: Modifier = Modifier, content: @Composable ColumnScop
     ) { Column(content = content) }
 }
 
-/** Ícono circular con fondo (encabezado de diálogos). */
+/** Circular icon with background (dialog header). */
 @Composable
 fun DialogIcon(@DrawableRes icon: Int, modifier: Modifier = Modifier, tint: Color = OnPrimaryContainer, background: Color = PrimaryContainer) {
     Box(
