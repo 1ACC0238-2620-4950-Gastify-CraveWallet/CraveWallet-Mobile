@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.json.JSONArray
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -103,7 +104,11 @@ class BackendApi(private val context: Context) {
                 }
                 throw ApiException(status, message)
             }
-            return if (text.isBlank()) JSONObject() else JSONObject(text)
+            return when {
+                text.isBlank() -> JSONObject()
+                text.trimStart().startsWith("[") -> JSONObject().put("items", JSONArray(text))
+                else -> JSONObject(text)
+            }
         }
     }
 }

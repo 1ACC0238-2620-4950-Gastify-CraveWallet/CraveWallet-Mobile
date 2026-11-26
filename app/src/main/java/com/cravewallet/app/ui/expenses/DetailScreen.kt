@@ -116,7 +116,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                 ServiceAvatar(sub.name, sub.category, size = 56.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(sub.name, style = CwType.Title, color = OnSurface)
-                    Text("${stringResource(sub.category.labelRes)} · ${stringResource(sub.frequency.labelRes)}", style = CwType.Caption, color = OnSurfaceVariant)
+                    Text("${stringResource(sub.category.labelRes)} Â· ${stringResource(sub.frequency.labelRes)}", style = CwType.Caption, color = OnSurfaceVariant)
                     StatusChip(state.status(sub))
                 }
             }
@@ -184,7 +184,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                 OutlinedGroup {
                     ListRow(
                         title = stringResource(R.string.detail_reminder_title),
-                        subtitle = "${Fmt.shortWeekday(at.toLocalDate()).replaceFirstChar { it.uppercase() }}, ${Fmt.time(at.hour, at.minute, context)} · $channel",
+                        subtitle = "${Fmt.shortWeekday(at.toLocalDate()).replaceFirstChar { it.uppercase() }}, ${Fmt.time(at.hour, at.minute, context)} Â· $channel",
                         icon = R.drawable.ic_notifications_active,
                         iconBackground = PrimaryContainer,
                         iconTint = Primary,
@@ -193,6 +193,9 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                 }
             }
 
+            if (state.backendMode) {
+                if (sub.currency == Currency.USD) ConnectedExchangeRateHistory(sub.id, vm)
+            } else {
             SectionHeader(stringResource(R.string.detail_history_title), modifier = Modifier.padding(top = 8.dp))
             if (sub.payments.isEmpty()) {
                 Text(stringResource(R.string.detail_history_empty, Fmt.dayMonthYear(sub.nextCharge)), style = CwType.Body, color = OnSurfaceVariant)
@@ -218,6 +221,8 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                         }
                     }
                 }
+            }
+
             }
 
             if (sub.notes.isNotBlank()) {
