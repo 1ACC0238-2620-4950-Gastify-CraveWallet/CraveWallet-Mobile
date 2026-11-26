@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,6 +69,7 @@ import kotlin.math.abs
 @Composable
 fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActions) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val sub = state.subscriptions.firstOrNull { it.id == id }
     LaunchedEffect(sub == null) { if (sub == null) actions.back() }
     if (sub == null) return
@@ -231,7 +233,7 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                     stringResource(R.string.detail_reactivate_btn),
                     onClick = {
                         vm.setCancelled(sub.id, false)
-                        actions.snack(context.getString(R.string.detail_reactivated_snack, sub.name))
+                        actions.snack(resources.getString(R.string.detail_reactivated_snack, sub.name))
                     },
                     icon = R.drawable.ic_restart_alt,
                     height = 48.dp,
@@ -260,10 +262,10 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
             onConfirm = {
                 confirmCancel = false
                 vm.cancel(sub.id) {
-                    if (state.backendMode) actions.snack(context.getString(R.string.detail_cancelled_remote_snack, sub.name))
+                    if (state.backendMode) actions.snack(resources.getString(R.string.detail_cancelled_remote_snack, sub.name))
                     else actions.snack(
-                        context.getString(R.string.detail_cancelled_local_snack, sub.name, Fmt.pen(state.monthlyPen(sub), context)),
-                        context.getString(R.string.common_undo),
+                        resources.getString(R.string.detail_cancelled_local_snack, sub.name, Fmt.pen(state.monthlyPen(sub), context)),
+                        resources.getString(R.string.common_undo),
                     ) {
                         vm.setCancelled(sub.id, false)
                     }
@@ -283,8 +285,8 @@ fun DetailScreen(id: String, state: AppState, vm: AppViewModel, actions: AppActi
                 val backup = sub
                 vm.delete(sub.id)
                 actions.snack(
-                    context.getString(R.string.detail_deleted_snack, sub.name),
-                    context.getString(R.string.common_undo),
+                    resources.getString(R.string.detail_deleted_snack, sub.name),
+                    resources.getString(R.string.common_undo),
                 ) { vm.restore(backup.copy(calendarEventId = null)) }
             },
             onDismiss = { confirmDelete = false },

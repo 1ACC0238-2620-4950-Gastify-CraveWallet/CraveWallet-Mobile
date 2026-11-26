@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -136,6 +137,7 @@ fun AddSubscriptionSheet(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val editing = remember(request) { request.editId?.let { vm.subscription(it) } }
     val initial = remember(request) {
         editing?.let {
@@ -186,22 +188,22 @@ fun AddSubscriptionSheet(
             onClose()
             val name = sub.name
             when {
-                editing != null -> actions.snack(context.getString(R.string.add_snack_changes_saved))
-                state.backendMode -> actions.snack(context.getString(R.string.add_snack_saved_remote, name))
+                editing != null -> actions.snack(resources.getString(R.string.add_snack_changes_saved))
+                state.backendMode -> actions.snack(resources.getString(R.string.add_snack_saved_remote, name))
                 created -> {
                     val at = ReminderPlanner.reminderTime(next, lead, state.reminders)
                     actions.snack(
-                        context.getString(R.string.add_snack_added_with_date, name, Fmt.dayMonth(at.toLocalDate())),
-                        context.getString(R.string.common_undo),
+                        resources.getString(R.string.add_snack_added_with_date, name, Fmt.dayMonth(at.toLocalDate())),
+                        resources.getString(R.string.common_undo),
                     ) { vm.undoAdd(id) }
                 }
                 withCalendar || calendar -> actions.snack(
-                    context.getString(R.string.add_snack_added_no_cal, name),
-                    context.getString(R.string.add_snack_settings_action),
+                    resources.getString(R.string.add_snack_added_no_cal, name),
+                    resources.getString(R.string.add_snack_settings_action),
                 ) { actions.nav.navigate(Routes.REMINDERS) }
                 else -> actions.snack(
-                    context.getString(R.string.add_snack_added_simple, name),
-                    context.getString(R.string.common_undo),
+                    resources.getString(R.string.add_snack_added_simple, name),
+                    resources.getString(R.string.common_undo),
                 ) { vm.undoAdd(id) }
             }
         }

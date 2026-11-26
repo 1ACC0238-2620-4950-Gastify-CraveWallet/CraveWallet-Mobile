@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -91,6 +92,7 @@ fun AnalysisScreen(state: AppState, vm: AppViewModel, actions: AppActions, onVie
 @Composable
 private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewModel) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val online by rememberIsOnline()
     var retrying by remember { mutableStateOf(false) }
     var range by rememberSaveable { mutableStateOf(Range.SEIS_MESES) }
@@ -116,7 +118,7 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
                         retrying = true
                         vm.refreshRates { ok ->
                             retrying = false
-                            actions.snack(context.getString(if (ok) R.string.analysis_rate_updated_snack else R.string.analysis_still_offline_snack))
+                            actions.snack(resources.getString(if (ok) R.string.analysis_rate_updated_snack else R.string.analysis_still_offline_snack))
                         }
                     })
                 },

@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -69,6 +70,7 @@ private enum class SortBy(@param:StringRes val labelRes: Int) {
 @Composable
 fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focusSearch: Boolean) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     var query by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf<Category?>(null) }
     var status by rememberSaveable { mutableStateOf<SubStatus?>(null) }
@@ -206,8 +208,8 @@ fun ExpensesScreen(state: AppState, vm: AppViewModel, actions: AppActions, focus
                         onAction = {
                             vm.setUnused(sub.id, !unused)
                             actions.snack(
-                                context.getString(if (unused) R.string.expenses_snack_in_use else R.string.expenses_snack_unused, sub.name),
-                                action = context.getString(R.string.common_undo),
+                                resources.getString(if (unused) R.string.expenses_snack_in_use else R.string.expenses_snack_unused, sub.name),
+                                action = resources.getString(R.string.common_undo),
                             ) { vm.setUnused(sub.id, unused) }
                         },
                     ) {

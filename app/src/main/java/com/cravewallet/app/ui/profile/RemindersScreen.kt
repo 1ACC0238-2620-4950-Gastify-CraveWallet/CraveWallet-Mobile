@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -94,6 +95,7 @@ private fun Context.findActivity(): Activity? = when (this) {
 @Composable
 fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val saved = state.reminders
     var draft by remember { mutableStateOf(saved) }
     var justSaved by remember { mutableStateOf(false) }
@@ -126,13 +128,13 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             val canAskAgain = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && activity != null &&
                 ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
             if (!canAskAgain) blocked = true
-            else actions.snack(context.getString(R.string.reminders_no_push_perm_snack))
+            else actions.snack(resources.getString(R.string.reminders_no_push_perm_snack))
         }
     }
     val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         calendarAllowed = result.values.all { it }
         if (calendarAllowed) draft = draft.copy(calendarEnabled = true)
-        else actions.snack(context.getString(R.string.reminders_no_cal_perm_snack))
+        else actions.snack(resources.getString(R.string.reminders_no_cal_perm_snack))
     }
 
     fun setPush(on: Boolean) {
@@ -161,9 +163,9 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
         vm.saveReminders(draft)
         justSaved = true
         val lead = draft.leadTime
-        val text = if (lead == LeadTime.SAME_DAY) context.getString(R.string.reminders_saved_same_day_snack)
-        else context.getString(R.string.reminders_saved_lead_snack, lead.label(context).substringBefore(" (").lowercase())
-        actions.snack(text, context.getString(R.string.common_undo)) {
+        val text = if (lead == LeadTime.SAME_DAY) resources.getString(R.string.reminders_saved_same_day_snack)
+        else resources.getString(R.string.reminders_saved_lead_snack, lead.label(context).substringBefore(" (").lowercase())
+        actions.snack(text, resources.getString(R.string.common_undo)) {
             vm.saveReminders(previous)
             draft = previous
             justSaved = false

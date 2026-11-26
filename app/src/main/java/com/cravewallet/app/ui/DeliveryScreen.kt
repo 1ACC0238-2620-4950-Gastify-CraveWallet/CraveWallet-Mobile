@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.cravewallet.app.AppViewModel
@@ -24,6 +25,7 @@ import java.util.UUID
 @Composable
 fun DeliveryScreen(vm: AppViewModel) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val today = LocalDate.now(ZoneId.of("America/Lima"))
     val defaultCategory = stringResource(R.string.delivery_default_category)
     var period by remember { mutableStateOf(today.withDayOfMonth(1)) }
@@ -50,7 +52,7 @@ fun DeliveryScreen(vm: AppViewModel) {
             busy = true; error = null; notice = null
             try { block() }
             catch (e: CancellationException) { throw e }
-            catch (e: Exception) { error = e.message ?: context.getString(R.string.delivery_err_generic) }
+            catch (e: Exception) { error = e.message ?: resources.getString(R.string.delivery_err_generic) }
             finally { busy = false }
         }
     }
@@ -79,11 +81,11 @@ fun DeliveryScreen(vm: AppViewModel) {
         Button(onClick = {
             run {
                 val value = if (limit.isBlank()) null else limit.replace(',', '.').toDoubleOrNull()
-                    ?: throw IllegalArgumentException(context.getString(R.string.delivery_err_invalid_budget))
-                require(value == null || (value.isFinite() && value > 0)) { context.getString(R.string.delivery_err_positive_budget) }
+                    ?: throw IllegalArgumentException(resources.getString(R.string.delivery_err_invalid_budget))
+                require(value == null || (value.isFinite() && value > 0)) { resources.getString(R.string.delivery_err_positive_budget) }
                 vm.deliveryBudget(period.year, period.monthValue, value)
-                notice = context.getString(R.string.delivery_budget_saved)
-                try { reload() } catch (e: CancellationException) { throw e } catch (e: Exception) { error = context.getString(R.string.delivery_err_saved_no_refresh) }
+                notice = resources.getString(R.string.delivery_budget_saved)
+                try { reload() } catch (e: CancellationException) { throw e } catch (e: Exception) { error = resources.getString(R.string.delivery_err_saved_no_refresh) }
             }
         }, enabled = !busy) { Text(stringResource(R.string.delivery_save_budget)) }
         HorizontalDivider()
@@ -94,17 +96,17 @@ fun DeliveryScreen(vm: AppViewModel) {
         OutlinedTextField(date, { date = it }, label = { Text(stringResource(R.string.delivery_date_label)) }, enabled = !busy, modifier = Modifier.fillMaxWidth())
         Button(onClick = {
             run {
-                val value = amount.replace(',', '.').toDoubleOrNull() ?: throw IllegalArgumentException(context.getString(R.string.delivery_err_invalid_amount))
-                require(value.isFinite() && value > 0 && merchant.isNotBlank() && category.isNotBlank()) { context.getString(R.string.delivery_err_incomplete) }
+                val value = amount.replace(',', '.').toDoubleOrNull() ?: throw IllegalArgumentException(resources.getString(R.string.delivery_err_invalid_amount))
+                require(value.isFinite() && value > 0 && merchant.isNotBlank() && category.isNotBlank()) { resources.getString(R.string.delivery_err_incomplete) }
                 val expenseDate = LocalDate.parse(date)
-                require(!expenseDate.isAfter(today)) { context.getString(R.string.delivery_err_future_date) }
+                require(!expenseDate.isAfter(today)) { resources.getString(R.string.delivery_err_future_date) }
                 val fingerprint = listOf(merchant.trim(), value.toString(), category.trim(), date).joinToString("|")
                 val id = if (pendingFingerprint == fingerprint && pendingId != null) pendingId!! else UUID.randomUUID().toString()
                 pendingId = id; pendingFingerprint = fingerprint
                 vm.deliveryExpense(id, merchant.trim(), value, category.trim(), date)
-                pendingId = null; pendingFingerprint = null; merchant = ""; amount = ""; notice = context.getString(R.string.delivery_expense_saved)
+                pendingId = null; pendingFingerprint = null; merchant = ""; amount = ""; notice = resources.getString(R.string.delivery_expense_saved)
                 period = expenseDate.withDayOfMonth(1)
-                try { reload() } catch (e: CancellationException) { throw e } catch (e: Exception) { error = context.getString(R.string.delivery_err_expense_no_refresh) }
+                try { reload() } catch (e: CancellationException) { throw e } catch (e: Exception) { error = resources.getString(R.string.delivery_err_expense_no_refresh) }
             }
         }, enabled = !busy) { Text(stringResource(if (busy) R.string.delivery_processing else R.string.delivery_save_expense)) }
     }
