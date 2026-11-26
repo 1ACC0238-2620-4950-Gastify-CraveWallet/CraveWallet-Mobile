@@ -2,7 +2,7 @@ package com.cravewallet.app.ui
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
@@ -176,7 +176,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
     val openCheckout: () -> Unit = {
         vm.startPremiumCheckout { url ->
             try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addCategory(Intent.CATEGORY_BROWSABLE))
                 checkoutOpened = true
             } catch (_: ActivityNotFoundException) {
                 throw IllegalStateException(resources.getString(R.string.shell_no_browser_error))

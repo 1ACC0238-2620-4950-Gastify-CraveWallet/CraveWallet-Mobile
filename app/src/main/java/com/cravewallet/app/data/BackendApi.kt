@@ -1,6 +1,7 @@
 package com.cravewallet.app.data
 
 import android.content.Context
+import androidx.core.content.edit
 import com.cravewallet.app.BuildConfig
 import com.cravewallet.app.R
 import kotlinx.coroutines.Dispatchers
@@ -40,16 +41,18 @@ class BackendApi(private val context: Context) {
         require(parsed.path.isEmpty() || parsed.path == "/") {
             context.getString(R.string.err_url_host_port_only)
         }
-        prefs.edit().putString("url", url.trim().trimEnd('/')).commit()
+        prefs.edit(commit = true) { putString("url", url.trim().trimEnd('/')) }
     }
 
     private fun saveSession(body: JSONObject) {
-        prefs.edit().putString("access", body.getString("accessToken"))
-            .putString("refresh", body.getString("refreshToken"))
-            .putString("email", body.getJSONObject("user").getString("email")).commit()
+        prefs.edit(commit = true) {
+            putString("access", body.getString("accessToken"))
+            putString("refresh", body.getString("refreshToken"))
+            putString("email", body.getJSONObject("user").getString("email"))
+        }
     }
 
-    fun clearSession() { prefs.edit().remove("access").remove("refresh").remove("email").commit() }
+    fun clearSession() { prefs.edit(commit = true) { remove("access"); remove("refresh"); remove("email") } }
 
     suspend fun authenticate(email: String, password: String, register: Boolean): JSONObject = withContext(Dispatchers.IO) {
         val result = raw("POST", if (register) "/api/v1/auth/register" else "/api/v1/auth/login",

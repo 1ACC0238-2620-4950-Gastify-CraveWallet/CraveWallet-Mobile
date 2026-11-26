@@ -501,7 +501,7 @@
     <string name="delivery_save_changes">Guardar cambios</string>
     <string name="delivery_err_invalid_date">Ingresa una fecha vÃ¡lida (AAAA-MM-DD).</string>
     <string name="fx_history_title">Historial del tipo de cambio</string>
-    <string name="fx_history_loading">Cargando historial del tipo de cambio...</string>
+    <string name="fx_history_loading">Cargando historial del tipo de cambio…</string>
     <string name="fx_history_empty">Aún no hay historial del tipo de cambio disponible.</string>
     <string name="fx_history_error_fallback">No se pudo cargar el historial del tipo de cambio.</string>
     <string name="fx_history_retry">Reintentar</string>

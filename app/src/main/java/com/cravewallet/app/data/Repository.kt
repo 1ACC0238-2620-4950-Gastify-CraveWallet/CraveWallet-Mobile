@@ -1,6 +1,7 @@
 package com.cravewallet.app.data
 
 import android.content.Context
+import androidx.core.content.edit
 import com.cravewallet.app.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -173,7 +174,7 @@ class Repository(private val context: Context) {
 
     private fun commit(transform: (AppState) -> AppState) {
         _state.update(transform)
-        prefs.edit().putString(if(connected) "account_${api.email}" else KEY_STATE, encode(_state.value).toString()).apply()
+        prefs.edit { putString(if(connected) "account_${api.email}" else KEY_STATE, encode(_state.value).toString()) }
     }
 
     fun markTotalsPending() = commit { it.copy(serverMonthlyTotal=null) }

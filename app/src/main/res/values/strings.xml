@@ -501,7 +501,7 @@
     <string name="delivery_save_changes">Save changes</string>
     <string name="delivery_err_invalid_date">Enter a valid date (YYYY-MM-DD).</string>
     <string name="fx_history_title">Exchange rate history</string>
-    <string name="fx_history_loading">Loading exchange rate history...</string>
+    <string name="fx_history_loading">Loading exchange rate history…</string>
     <string name="fx_history_empty">No exchange rate history available yet.</string>
     <string name="fx_history_error_fallback">Unable to load exchange rate history.</string>
     <string name="fx_history_retry">Retry</string>

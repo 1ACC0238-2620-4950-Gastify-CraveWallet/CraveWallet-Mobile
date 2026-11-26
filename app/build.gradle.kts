@@ -43,13 +43,13 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
 }
 
 dependencies {
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    testImplementation("junit:junit:4.13.2")
+    debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.okhttp)
+    testImplementation(libs.junit)
     testImplementation(platform(libs.androidx.compose.bom))
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("org.robolectric:robolectric:4.17")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation(libs.androidx.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.mockwebserver)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
