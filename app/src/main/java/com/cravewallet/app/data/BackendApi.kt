@@ -1,6 +1,7 @@
 package com.cravewallet.app.data
 
 import android.content.Context
+import androidx.core.content.edit
 import com.cravewallet.app.BuildConfig
 import com.cravewallet.app.R
 import kotlinx.coroutines.Dispatchers
@@ -8,6 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.json.JSONArray
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -39,16 +41,18 @@ class BackendApi(private val context: Context) {
         require(parsed.path.isEmpty() || parsed.path == "/") {
             context.getString(R.string.err_url_host_port_only)
         }
-        prefs.edit().putString("url", url.trim().trimEnd('/')).commit()
+        prefs.edit(commit = true) { putString("url", url.trim().trimEnd('/')) }
     }
 
     private fun saveSession(body: JSONObject) {
-        prefs.edit().putString("access", body.getString("accessToken"))
-            .putString("refresh", body.getString("refreshToken"))
-            .putString("email", body.getJSONObject("user").getString("email")).commit()
+        prefs.edit(commit = true) {
+            putString("access", body.getString("accessToken"))
+            putString("refresh", body.getString("refreshToken"))
+            putString("email", body.getJSONObject("user").getString("email"))
+        }
     }
 
-    fun clearSession() { prefs.edit().remove("access").remove("refresh").remove("email").commit() }
+    fun clearSession() { prefs.edit(commit = true) { remove("access"); remove("refresh"); remove("email") } }
 
     suspend fun authenticate(email: String, password: String, register: Boolean): JSONObject = withContext(Dispatchers.IO) {
         val result = raw("POST", if (register) "/api/v1/auth/register" else "/api/v1/auth/login",
@@ -103,7 +107,11 @@ class BackendApi(private val context: Context) {
                 }
                 throw ApiException(status, message)
             }
-            return if (text.isBlank()) JSONObject() else JSONObject(text)
+            return when {
+                text.isBlank() -> JSONObject()
+                text.trimStart().startsWith("[") -> JSONObject().put("items", JSONArray(text))
+                else -> JSONObject(text)
+            }
         }
     }
 }

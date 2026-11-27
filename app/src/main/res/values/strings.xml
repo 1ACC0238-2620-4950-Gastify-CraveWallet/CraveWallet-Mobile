@@ -491,4 +491,27 @@
     <string name="err_invalid_checkout_url">The server did not return a valid payment link.</string>
     <string name="err_remote_unsupported_currency_freq">The server supports PEN/USD and monthly/annual frequency.</string>
     <string name="err_remote_edit_restricted">You can only edit amount, category, and next billing date.</string>
+    <string name="delivery_expenses_month">Expenses this month</string>
+    <string name="delivery_no_expenses">No delivery expenses this month.</string>
+    <string name="delivery_edit_title">Edit delivery expense</string>
+    <string name="delivery_delete_title">Delete delivery expense</string>
+    <string name="delivery_delete_confirm">Delete the expense at %1$s? The monthly total will be updated.</string>
+    <string name="delivery_expense_updated">Expense updated.</string>
+    <string name="delivery_expense_deleted">Expense deleted.</string>
+    <string name="delivery_save_changes">Save changes</string>
+    <string name="delivery_err_invalid_date">Enter a valid date (YYYY-MM-DD).</string>
+    <string name="fx_history_title">Exchange rate history</string>
+    <string name="fx_history_loading">Loading exchange rate history…</string>
+    <string name="fx_history_empty">No exchange rate history available yet.</string>
+    <string name="fx_history_error_fallback">Unable to load exchange rate history.</string>
+    <string name="fx_history_retry">Retry</string>
+    <string name="fx_history_variation_label">Rate variation</string>
+    <string name="fx_history_variation_up">▲ Up %1$s</string>
+    <string name="fx_history_variation_down">▼ Down %1$s</string>
+    <string name="fx_history_variation_unchanged">• Unchanged (%1$s)</string>
+    <string name="fx_history_variation_cd_up">Exchange rate increased by %1$s</string>
+    <string name="fx_history_variation_cd_down">Exchange rate decreased by %1$s</string>
+    <string name="fx_history_variation_cd_unchanged">Exchange rate unchanged at %1$s</string>
+    <string name="fx_history_rate_label">Rate: %1$s</string>
+    <string name="fx_history_cycle_cd">Billing date %1$s, exchange rate %2$s, amount %3$s</string>
 </resources>

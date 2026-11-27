@@ -17,6 +17,8 @@ import com.cravewallet.app.data.LeadTime
 import com.cravewallet.app.data.Profile
 import com.cravewallet.app.data.ReminderSettings
 import com.cravewallet.app.data.Subscription
+import com.cravewallet.app.data.DeliveryExpenseRecord
+import com.cravewallet.app.data.RemoteRecordsApi
 import com.cravewallet.app.reminders.CalendarHelper
 import com.cravewallet.app.reminders.ReminderPlanner
 import com.cravewallet.app.reminders.ReminderScheduler
@@ -28,6 +30,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = (app as CraveApplication).repository
     private val context get() = getApplication<Application>()
+    private val recordsApi = RemoteRecordsApi(repo.api)
 
     val state: StateFlow<AppState> = repo.state
     val access = repo.access
@@ -82,6 +85,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         try {return repo.api.request(method,path,body)} catch(e:Exception) {repo.checkSession();throw e}
     }
     suspend fun deliverySummary(year:Int,month:Int) = backendRequest("GET","/api/v1/delivery-expenses/summary?year=$year&month=$month")
+    private suspend fun <T> recordsRequest(block: suspend () -> T): T {
+        try { return block() } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { repo.checkSession(); throw e }
+    }
+    suspend fun deliveryExpenses(year: Int, month: Int) = recordsRequest { recordsApi.deliveryExpenses(year, month) }
+    suspend fun correctDeliveryExpense(expense: DeliveryExpenseRecord) = recordsRequest { recordsApi.correctDeliveryExpense(expense) }
+    suspend fun deleteDeliveryExpense(id: String) = recordsRequest { recordsApi.deleteDeliveryExpense(id) }
+    suspend fun exchangeRateHistory(id: String) = recordsRequest { recordsApi.exchangeRateHistory(id) }
     suspend fun deliveryBudget(year:Int,month:Int,limit:Double?) = backendRequest("PUT","/api/v1/delivery-expenses/budget",org.json.JSONObject().put("year",year).put("month",month).put("spendingLimit",limit ?: org.json.JSONObject.NULL))
     suspend fun deliveryExpense(requestId:String,merchant:String,amount:Double,category:String,date:String) = backendRequest("POST","/api/v1/delivery-expenses",org.json.JSONObject().put("requestId",requestId).put("merchant",merchant).put("amount",java.math.BigDecimal.valueOf(amount)).put("category",category).put("expenseDate",date))
 
