@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -80,8 +81,9 @@ fun BarChart(
     tooltipDetail: ((Bar) -> String?)? = null,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val resolvedTooltipDetail: (Bar) -> String? = tooltipDetail ?: { bar ->
-        context.getString(
+        resources.getString(
             if (bar.count == 1) R.string.analysis_subs_count_one else R.string.analysis_subs_count_many,
             bar.count,
         )

@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,7 @@ private enum class ProfileDialog { RATE, ACCOUNT, PREMIUM_CANCEL, PRIVACY, RESET
 @Composable
 fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     var dialog by remember { mutableStateOf<ProfileDialog?>(null) }
     val premiumStatus = state.premiumStatus
     val periodEnd = premiumStatus?.periodEndsAt?.atZone(ZoneId.of("America/Lima"))?.toLocalDate()
@@ -120,7 +122,7 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                     icon = R.drawable.ic_currency_exchange,
                     onClick = {
                         actions.snack(
-                            context.getString(
+                            resources.getString(
                                 if (state.backendMode) R.string.profile_snack_currency_remote else R.string.profile_snack_currency_local
                             )
                         )
@@ -142,7 +144,7 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                     subtitle = stringResource(R.string.profile_row_account_data_sub),
                     icon = R.drawable.ic_person,
                     onClick = {
-                        if (state.backendMode) actions.snack(context.getString(R.string.profile_snack_edit_unavailable))
+                        if (state.backendMode) actions.snack(resources.getString(R.string.profile_snack_edit_unavailable))
                         else dialog = ProfileDialog.ACCOUNT
                     },
                 )
@@ -223,7 +225,7 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             onSave = {
                 vm.setProfile(it)
                 dialog = null
-                actions.snack(context.getString(R.string.profile_snack_account_updated))
+                actions.snack(resources.getString(R.string.profile_snack_account_updated))
             },
         ) { dialog = null }
         ProfileDialog.PREMIUM_CANCEL -> ConfirmDialog(
@@ -235,7 +237,7 @@ fun ProfileScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             onConfirm = {
                 dialog = null
                 vm.cancelPremium {
-                    actions.snack(context.getString(if (state.backendMode) R.string.profile_snack_renewal_cancelled else R.string.profile_snack_back_to_free))
+                    actions.snack(resources.getString(if (state.backendMode) R.string.profile_snack_renewal_cancelled else R.string.profile_snack_back_to_free))
                 }
             },
             onDismiss = { dialog = null },
@@ -273,6 +275,7 @@ private fun GroupLabel(text: String) {
 @Composable
 private fun RateDialog(state: AppState, vm: AppViewModel, actions: AppActions, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     var text by remember { mutableStateOf(Fmt.rate(state.rates.usd, context)) }
     var loading by remember { mutableStateOf(false) }
     val value = text.replace(',', '.').toDoubleOrNull()
@@ -305,8 +308,8 @@ private fun RateDialog(state: AppState, vm: AppViewModel, actions: AppActions, o
                             loading = false
                             if (ok) {
                                 onDismiss()
-                                actions.snack(context.getString(R.string.analysis_rate_updated_snack))
-                            } else actions.snack(context.getString(R.string.profile_rate_update_failed_snack))
+                                actions.snack(resources.getString(R.string.analysis_rate_updated_snack))
+                            } else actions.snack(resources.getString(R.string.profile_rate_update_failed_snack))
                         }
                     },
                 )
@@ -316,7 +319,7 @@ private fun RateDialog(state: AppState, vm: AppViewModel, actions: AppActions, o
             PrimaryButton(stringResource(R.string.common_save), enabled = value != null && value > 0, height = 44.dp, shape = RoundedCornerShape(12.dp), onClick = {
                 vm.setUsdRate(value ?: return@PrimaryButton)
                 onDismiss()
-                actions.snack(context.getString(R.string.profile_rate_set_snack, Fmt.rate(value, context)))
+                actions.snack(resources.getString(R.string.profile_rate_set_snack, Fmt.rate(value, context)))
             })
         },
         dismissButton = { CwTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },

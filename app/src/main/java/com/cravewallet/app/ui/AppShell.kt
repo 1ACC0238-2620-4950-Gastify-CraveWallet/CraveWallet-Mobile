@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -153,6 +154,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
     val access by vm.access.collectAsStateWithLifecycle()
     if(access == AccessMode.SIGNED_OUT) { AuthScreen(vm); return }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val nav = rememberNavController()
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -177,7 +179,7 @@ fun CraveWalletApp(vm: AppViewModel, openSubscriptionId: String? = null, onConsu
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
                 checkoutOpened = true
             } catch (_: ActivityNotFoundException) {
-                throw IllegalStateException(context.getString(R.string.shell_no_browser_error))
+                throw IllegalStateException(resources.getString(R.string.shell_no_browser_error))
             }
         }
     }
