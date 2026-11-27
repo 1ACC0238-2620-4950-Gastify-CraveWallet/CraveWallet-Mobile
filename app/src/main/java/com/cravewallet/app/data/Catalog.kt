@@ -1,8 +1,9 @@
 package com.cravewallet.app.data
 
+import android.content.Context
 import androidx.compose.ui.graphics.Color
 
-/** Servicio conocido: sirve para el paso 1 del alta y para pintar avatares con el color de la marca. */
+/** Known service: used in step 1 of add flow and for brand-colored avatars. */
 data class KnownService(
     val name: String,
     val initials: String,
@@ -43,9 +44,13 @@ object Catalog {
     fun find(name: String): KnownService? =
         services.firstOrNull { it.name.equals(name.trim(), ignoreCase = true) }
 
-    fun search(query: String): List<KnownService> {
+    fun search(query: String, context: Context? = null): List<KnownService> {
         val q = query.trim()
         if (q.isEmpty()) return popular
-        return services.filter { it.name.contains(q, ignoreCase = true) || it.category.label.contains(q, ignoreCase = true) }
+        return services.filter {
+            it.name.contains(q, ignoreCase = true) ||
+                it.category.legacyLabel.contains(q, ignoreCase = true) ||
+                (context != null && it.category.label(context).contains(q, ignoreCase = true))
+        }
     }
 }

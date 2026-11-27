@@ -27,7 +27,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
@@ -52,7 +54,7 @@ import com.cravewallet.app.ui.theme.SurfaceVariant
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Tarjeta de suscripción de la lista de Gastos (84 dp). */
+/** Subscription card in the Expenses list (84 dp). */
 @Composable
 fun SubscriptionCard(
     sub: Subscription,
@@ -60,6 +62,7 @@ fun SubscriptionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val status = state.status(sub)
     CwCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
         Row(
@@ -74,7 +77,7 @@ fun SubscriptionCard(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(sub.name, style = CwType.BodyStrong, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${sub.category.label} · ${Fmt.dayMonth(sub.nextCharge)}",
+                    "${stringResource(sub.category.labelRes)} · ${Fmt.dayMonth(sub.nextCharge)}",
                     style = CwType.Caption,
                     color = OnSurfaceVariant,
                 )
@@ -83,22 +86,21 @@ fun SubscriptionCard(
             }
             Column(horizontalAlignment = Alignment.End, modifier = Modifier.align(Alignment.Top).padding(top = 12.dp)) {
                 Text(
-                    Fmt.pen(state.pen(sub)),
+                    Fmt.pen(state.pen(sub), context),
                     style = CwType.BodyLarge.copy(fontWeight = FontWeight.SemiBold, lineHeight = 22.sp),
                     color = if (status == SubStatus.CANCELADA) OnSurfaceVariant else OnSurface,
                 )
                 if (sub.currency != Currency.PEN) {
-                    Text(Fmt.money(sub.amount, sub.currency), style = CwType.Caption, fontWeight = FontWeight.Medium, color = OnSurfaceVariant)
+                    Text(Fmt.money(sub.amount, sub.currency, context), style = CwType.Caption, fontWeight = FontWeight.Medium, color = OnSurfaceVariant)
                 }
             }
         }
     }
 }
 
-
 /**
- * Envuelve una tarjeta para que al deslizarla a la izquierda muestre la acción "Sin usar" (G2).
- * La acción también está disponible como acción de accesibilidad.
+ * Wraps a card so swiping left reveals the "Unused" action (G2).
+ * The action is also exposed as a custom accessibility action.
  */
 @Composable
 fun SwipeActionCard(
@@ -120,7 +122,7 @@ fun SwipeActionCard(
                 customActions = listOf(CustomAccessibilityAction(actionLabel) { onAction(); true })
             },
     ) {
-        // Fondo con la acción
+        // Background with action
         Row(
             Modifier
                 .matchParentSize()
@@ -139,7 +141,7 @@ fun SwipeActionCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                CwIcon(actionIcon, tint = OnSurface)
+                CwIcon(actionIcon, tint = OnSurface, contentDescription = actionLabel)
                 Spacer(Modifier.height(4.dp))
                 Text(actionLabel, style = CwType.Caption, fontWeight = FontWeight.Medium, color = OnSurface)
             }
@@ -161,24 +163,24 @@ fun SwipeActionCard(
     }
 }
 
-/** Tarjeta pequeña del carrusel "Próximos cobros" (152 × 148 dp). */
+/** Small card in the "Upcoming charges" carousel (152 × 148 dp). */
 @Composable
 fun UpcomingCard(sub: Subscription, state: AppState, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     CwCard(modifier = modifier.width(152.dp).height(148.dp), onClick = onClick) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            // El chip se superpone al borde derecho como en el wireframe, sin partir el texto
             Box(Modifier.fillMaxWidth().height(44.dp)) {
                 ServiceAvatar(sub.name, sub.category)
                 StatusChip(state.status(sub), Modifier.align(Alignment.TopEnd).offset(x = 6.dp))
             }
             Text(sub.name, style = CwType.BodyStrong, color = OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${Fmt.relativeDays(sub.nextCharge)} · ${Fmt.dayMonth(sub.nextCharge)}", style = CwType.Caption, color = OnSurfaceVariant)
-            Text(Fmt.pen(state.pen(sub)), style = CwType.Heading.copy(fontFamily = com.cravewallet.app.ui.theme.Poppins, fontWeight = FontWeight.Bold), color = OnSurface)
+            Text("${Fmt.relativeDays(sub.nextCharge, context = context)} · ${Fmt.dayMonth(sub.nextCharge)}", style = CwType.Caption, color = OnSurfaceVariant)
+            Text(Fmt.pen(state.pen(sub), context), style = CwType.Heading.copy(fontFamily = com.cravewallet.app.ui.theme.Poppins, fontWeight = FontWeight.Bold), color = OnSurface)
         }
     }
 }
 
-/** Última tarjeta del carrusel: "Ver los 7". */
+/** Last card in the carousel: "See all 7". */
 @Composable
 fun SeeAllCard(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     CwCard(
@@ -195,7 +197,7 @@ fun SeeAllCard(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
         ) {
             CwIcon(R.drawable.ic_receipt_long, size = 28.dp, tint = Primary)
             Spacer(Modifier.size(8.dp))
-            Text("Ver los $count", style = CwType.BodyStrong, color = Primary)
+            Text(stringResource(R.string.home_see_all_count, count), style = CwType.BodyStrong, color = Primary)
         }
     }
 }

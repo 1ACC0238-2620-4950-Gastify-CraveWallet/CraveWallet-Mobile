@@ -28,7 +28,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -41,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.cravewallet.app.R
 import com.cravewallet.app.data.Bar
 import com.cravewallet.app.data.CategoryShare
 import com.cravewallet.app.data.Fmt
@@ -53,7 +56,7 @@ import com.cravewallet.app.ui.theme.PrimaryContainer
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-/** Escala "bonita" del eje Y: tope y paso. */
+/** "Nice" Y-axis scale: top and step. */
 private fun niceScale(max: Double, ticks: Int = 5): Pair<Double, Double> {
     if (max <= 0) return 100.0 to 20.0
     val raw = max / ticks
@@ -63,8 +66,8 @@ private fun niceScale(max: Double, ticks: Int = 5): Pair<Double, Double> {
 }
 
 /**
- * Gráfico de barras con eje Y en soles. La barra seleccionada se pinta en primario y muestra un tooltip.
- * [showTooltip] = false oculta el tooltip (p. ej. en la barra del mes actual).
+ * Bar chart with Y-axis in soles. Selected bar is painted in primary and shows a tooltip.
+ * [showTooltip] = false hides the tooltip (e.g. on the current month's bar).
  */
 @Composable
 fun BarChart(
@@ -74,13 +77,20 @@ fun BarChart(
     modifier: Modifier = Modifier,
     chartHeight: androidx.compose.ui.unit.Dp = 140.dp,
     showTooltip: Boolean = true,
-    tooltipDetail: (Bar) -> String? = { "${it.count} ${if (it.count == 1) "suscripción" else "suscripciones"}" },
+    tooltipDetail: ((Bar) -> String?)? = null,
 ) {
+    val context = LocalContext.current
+    val resolvedTooltipDetail: (Bar) -> String? = tooltipDetail ?: { bar ->
+        context.getString(
+            if (bar.count == 1) R.string.analysis_subs_count_one else R.string.analysis_subs_count_many,
+            bar.count,
+        )
+    }
     val (top, step) = niceScale(bars.maxOfOrNull { it.total } ?: 0.0)
     val tickCount = (top / step).roundToInt()
     val density = LocalDensity.current
     Row(modifier.fillMaxWidth()) {
-        // Eje Y
+        // Y-axis
         Column(
             Modifier
                 .height(chartHeight)
@@ -96,7 +106,7 @@ fun BarChart(
             BoxWithConstraints(Modifier.fillMaxWidth().height(chartHeight)) {
                 val slot = maxWidth / bars.size.coerceAtLeast(1)
                 Canvas(Modifier.fillMaxSize()) {
-                    val labelPad = 6.dp.toPx() // centra las líneas con el texto del eje
+                    val labelPad = 6.dp.toPx()
                     for (i in 0..tickCount) {
                         val y = labelPad + (size.height - 2 * labelPad) * i / tickCount
                         drawLine(OutlineVariant, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
@@ -116,7 +126,7 @@ fun BarChart(
                                 .clickable(role = Role.Button) { onSelect(i) }
                                 .semantics {
                                     this.selected = isSelected
-                                    contentDescription = "${bar.label}: ${Fmt.pen(bar.total)}"
+                                    contentDescription = "${bar.label}: ${Fmt.pen(bar.total, context)}"
                                 },
                             contentAlignment = Alignment.BottomCenter,
                         ) {
@@ -152,7 +162,7 @@ fun BarChart(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Text(bar.tooltip, style = CwType.BodyStrong, color = Color.White)
-                        tooltipDetail(bar)?.let { Text(it, style = CwType.Caption, color = Color.White.copy(alpha = 0.85f)) }
+                        resolvedTooltipDetail(bar)?.let { Text(it, style = CwType.Caption, color = Color.White.copy(alpha = 0.85f)) }
                     }
                 }
             }
@@ -172,10 +182,16 @@ fun BarChart(
     }
 }
 
-/** Gráfico de dona por categoría con el total al centro. */
+/** Category donut chart with total in the center. */
 @Composable
 fun DonutChart(shares: List<CategoryShare>, centerLabel: String, centerValue: String, modifier: Modifier = Modifier) {
-    Box(modifier.size(148.dp), contentAlignment = Alignment.Center) {
+    val cd = stringResource(R.string.chart_donut_cd, centerValue, centerLabel)
+    Box(
+        modifier
+            .size(148.dp)
+            .semantics { contentDescription = cd },
+        contentAlignment = Alignment.Center,
+    ) {
         Canvas(Modifier.fillMaxSize().padding(8.dp)) {
             val stroke = 22.dp.toPx()
             val gap = if (shares.size > 1) 2f else 0f
@@ -198,7 +214,7 @@ fun DonutChart(shares: List<CategoryShare>, centerLabel: String, centerValue: St
     }
 }
 
-/** Barras punteadas del estado vacío (N4). */
+/** Dashed bars placeholder for empty state (N4). */
 @Composable
 fun EmptyBarsPlaceholder(modifier: Modifier = Modifier) {
     Canvas(modifier.fillMaxWidth().height(150.dp)) {

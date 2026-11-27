@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.cravewallet.app.R
@@ -30,7 +32,7 @@ import com.cravewallet.app.ui.theme.OnSurfaceVariant
 
 enum class PremiumReason { LIMIT, ANALYSIS, PLAN }
 
-/** A9 · Límite del plan gratuito / información del plan Premium. */
+/** A9 · Free plan limit / Premium plan information. */
 @Composable
 fun PremiumSheet(
     reason: PremiumReason,
@@ -39,6 +41,7 @@ fun PremiumSheet(
     onActivate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
     val limit = AppState.FREE_PLAN_LIMIT
     val used = state.active.size
     SheetOverlay(onDismissRequest = onDismiss, fullHeight = false) {
@@ -53,9 +56,9 @@ fun PremiumSheet(
             Spacer(Modifier.height(16.dp))
             Text(
                 when (reason) {
-                    PremiumReason.LIMIT -> "Llegaste a $used de $limit suscripciones"
-                    PremiumReason.ANALYSIS -> "Análisis es parte de Premium"
-                    PremiumReason.PLAN -> if (state.profile.premium) "Tienes CraveWallet Premium" else "CraveWallet Premium"
+                    PremiumReason.LIMIT -> stringResource(R.string.premium_title_limit, used, limit)
+                    PremiumReason.ANALYSIS -> stringResource(R.string.premium_title_analysis)
+                    PremiumReason.PLAN -> stringResource(if (state.profile.premium) R.string.premium_title_active else R.string.premium_title_default)
                 },
                 style = CwType.Heading,
                 color = OnSurface,
@@ -65,28 +68,32 @@ fun PremiumSheet(
                 Spacer(Modifier.height(12.dp))
                 ProgressTrack(fraction = used.toFloat() / limit, color = Accent, modifier = Modifier.fillMaxWidth(0.8f))
                 Spacer(Modifier.height(6.dp))
-                Text("$used de $limit en el plan gratuito", style = CwType.Caption, color = OnSurfaceVariant)
+                Text(stringResource(R.string.premium_free_plan_usage, used, limit), style = CwType.Caption, color = OnSurfaceVariant)
             }
             Spacer(Modifier.height(16.dp))
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                CheckItem("Suscripciones sin límite")
-                CheckItem("Análisis mensual y por categoría")
-                CheckItem("Precio en soles, sin tipo de cambio")
+                CheckItem(stringResource(R.string.premium_benefit_unlimited))
+                CheckItem(stringResource(R.string.premium_benefit_analysis))
+                CheckItem(stringResource(R.string.premium_benefit_soles))
             }
             Spacer(Modifier.height(24.dp))
+            val priceFormatted = Fmt.pen(state.premiumPrice, context)
             if (state.profile.premium) {
                 Text(
-                    "${Fmt.pen(state.premiumPrice)} al mes. Gestiona tu plan desde Perfil.",
+                    stringResource(R.string.premium_active_manage_hint, priceFormatted),
                     style = CwType.Caption,
                     color = OnSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(12.dp))
-                CwTextButton("Cerrar", onClick = onDismiss)
+                CwTextButton(stringResource(R.string.common_close), onClick = onDismiss)
             } else {
                 PrimaryButton(
-                    if (state.premiumStatus?.pending == true) "Continuar pago"
-                    else "${if (state.backendMode) "Ir al pago" else "Ver Premium"} · ${Fmt.pen(state.premiumPrice)} al mes",
+                    when {
+                        state.premiumStatus?.pending == true -> stringResource(R.string.analysis_locked_continue_pay)
+                        state.backendMode -> stringResource(R.string.premium_btn_go_to_pay, priceFormatted)
+                        else -> stringResource(R.string.premium_btn_view, priceFormatted)
+                    },
                     onClick = onActivate,
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
@@ -94,14 +101,13 @@ fun PremiumSheet(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    if (state.backendMode) "El pago se completa en Mercado Pago."
-                    else "Prototipo académico: no se realiza ningún cobro real.",
+                    stringResource(if (state.backendMode) R.string.premium_checkout_mp_note else R.string.premium_demo_note),
                     style = CwType.Label,
                     color = OnSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(4.dp))
-                CwTextButton("Ahora no", onClick = onDismiss)
+                CwTextButton(stringResource(R.string.common_not_now), onClick = onDismiss)
             }
             Spacer(Modifier.height(8.dp))
         }

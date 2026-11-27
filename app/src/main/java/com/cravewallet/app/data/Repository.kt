@@ -1,6 +1,7 @@
 package com.cravewallet.app.data
 
 import android.content.Context
+import com.cravewallet.app.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,11 +14,11 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
-/** La demostración y la sesión conectada mantienen fuentes de datos distintas. */
+/** Demo and connected session maintain separate data sources. */
 enum class AccessMode { SIGNED_OUT, CONNECTED, DEMO }
 
-/** El backend conserva suscripciones y totales; el teléfono conserva notas y preferencias por cuenta. */
-class Repository(context: Context) {
+/** The backend keeps subscriptions and totals; the phone keeps notes and preferences per account. */
+class Repository(private val context: Context) {
     val api = BackendApi(context)
     private val _access = MutableStateFlow(if (api.hasSession) AccessMode.CONNECTED else AccessMode.SIGNED_OUT)
     val access = _access.asStateFlow()
@@ -26,7 +27,7 @@ class Repository(context: Context) {
     fun signedOut() { _access.value = AccessMode.SIGNED_OUT; _state.value = emptyRemote() }
     fun checkSession() { if (connected && !api.hasSession) signedOut() }
     private fun emptyRemote() = SeedData.emptyState().copy(
-        profile = Profile(api.email.substringBefore('@').ifBlank { "Mi cuenta" }, api.email, false),
+        profile = Profile(api.email.substringBefore('@').ifBlank { context.getString(R.string.common_my_account) }, api.email, false),
         reminders = ReminderSettings(calendarEnabled = false, pushEnabled = false),
         subscriptions = emptyList(), backendMode = true, conversionAvailable = false,
         rates = ExchangeRates(usd = Double.NaN, eur = Double.NaN),
@@ -76,7 +77,7 @@ class Repository(context: Context) {
         val response = api.request("POST", "/api/v1/premium/checkout")
         val url = response.optString("checkoutUrl").toHttpUrlOrNull()
         require(url != null && url.isHttps && url.username.isEmpty() && url.password.isEmpty()) {
-            "El servidor no devolvió un enlace de pago válido."
+            context.getString(R.string.err_invalid_checkout_url)
         }
         return url.toString()
     }
@@ -99,11 +100,12 @@ class Repository(context: Context) {
     private fun fromRemote(o: JSONObject, local: Map<String, Subscription> = emptyMap()): Subscription {
         val id=o.getString("id")
         val previous=local[id]
+        val rawCat = o.getString("category")
         return Subscription(id=id, name=o.getString("name"), amount=o.getDouble("amount"),
             currency=Currency.valueOf(o.getString("currency")),
             frequency=if(o.getString("billingCycle")=="ANNUAL") Frequency.ANUAL else Frequency.MENSUAL,
             nextCharge=LocalDate.parse(o.getString("nextBillingDate")),
-            category=Category.entries.firstOrNull { it.name.equals(o.getString("category"),true) || it.label.equals(o.getString("category"),true) } ?: Category.OTROS,
+            category=Category.entries.firstOrNull { it.name.equals(rawCat,true) || it.legacyLabel.equals(rawCat,true) || it.label(context).equals(rawCat,true) } ?: Category.OTROS,
             cancelled=o.getString("status")=="CANCELLED", notes=previous?.notes.orEmpty(),
             unusedSince=previous?.unusedSince, startDate=previous?.startDate ?: LocalDate.parse(o.getString("nextBillingDate")),
             payments=emptyList(), calendarEventId=previous?.calendarEventId, leadTime=previous?.leadTime,
@@ -112,12 +114,14 @@ class Repository(context: Context) {
 
     suspend fun saveRemote(sub: Subscription): Subscription {
         val previous=subscription(sub.id)
-        require(sub.currency!=Currency.EUR && sub.frequency!=Frequency.TRIMESTRAL) { "El servidor admite PEN/USD y frecuencia mensual/anual." }
+        require(sub.currency!=Currency.EUR && sub.frequency!=Frequency.TRIMESTRAL) {
+            context.getString(R.string.err_remote_unsupported_currency_freq)
+        }
         val data=JSONObject().put("amount", java.math.BigDecimal.valueOf(sub.amount))
             .put("category",sub.category.name).put("nextBillingDate",sub.nextCharge.toString())
         if(previous!=null) {
             require(previous.name==sub.name && previous.currency==sub.currency && previous.frequency==sub.frequency) {
-                "Solo puedes editar monto, categoría y próxima fecha de cobro."
+                context.getString(R.string.err_remote_edit_restricted)
             }
         } else data.put("name",sub.name).put("currency",sub.currency.name)
             .put("billingCycle",if(sub.frequency==Frequency.ANUAL) "ANNUAL" else "MONTHLY")
@@ -152,7 +156,7 @@ class Repository(context: Context) {
         return rollForward(loaded)
     }
 
-    /** Si una fecha de cobro ya pasó, registra el pago y avanza al siguiente periodo. */
+    /** If a billing date has already passed, record the payment and advance to the next period. */
     private fun rollForward(state: AppState, today: LocalDate = LocalDate.now()): AppState {
         val subs = state.subscriptions.map { s ->
             if (s.cancelled || !s.nextCharge.isBefore(today)) return@map s

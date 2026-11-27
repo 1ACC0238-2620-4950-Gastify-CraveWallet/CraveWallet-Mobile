@@ -1,6 +1,8 @@
 package com.cravewallet.app.data
 
+import android.content.Context
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 import com.cravewallet.app.R
 import java.time.Instant
@@ -8,46 +10,62 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
-enum class Currency(val code: String, val label: String) {
-    PEN("PEN", "Sol peruano"),
-    USD("USD", "Dólar estadounidense"),
-    EUR("EUR", "Euro"),
+enum class Currency(val code: String, @param:StringRes val labelRes: Int, @param:StringRes val pluralRes: Int) {
+    PEN("PEN", R.string.currency_pen_label, R.string.currency_pen_plural),
+    USD("USD", R.string.currency_usd_label, R.string.currency_usd_plural),
+    EUR("EUR", R.string.currency_eur_label, R.string.currency_eur_plural);
+
+    fun label(context: Context): String = context.getString(labelRes)
 }
 
-enum class Frequency(val label: String, val months: Long) {
-    MENSUAL("Mensual", 1),
-    TRIMESTRAL("Trimestral", 3),
-    ANUAL("Anual", 12);
+enum class Frequency(@param:StringRes val labelRes: Int, val months: Long) {
+    MENSUAL(R.string.freq_monthly, 1),
+    TRIMESTRAL(R.string.freq_quarterly, 3),
+    ANUAL(R.string.freq_annual, 12);
 
     fun next(date: LocalDate): LocalDate = date.plusMonths(months)
+    fun label(context: Context): String = context.getString(labelRes)
 }
 
-enum class Category(val label: String, @param:DrawableRes val icon: Int, val color: Color) {
-    STREAMING("Streaming", R.drawable.ic_play_circle, Color(0xFFF97316)),
-    PRODUCTIVIDAD("Productividad", R.drawable.ic_work, Color(0xFF3B4FD8)),
-    FITNESS("Fitness", R.drawable.ic_fitness_center, Color(0xFF22C55E)),
-    MUSICA("Música", R.drawable.ic_headphones, Color(0xFF38BDF8)),
-    DELIVERY("Delivery", R.drawable.ic_moped, Color(0xFFFBBF24)),
-    OTROS("Otros", R.drawable.ic_category, Color(0xFF64748B)),
+enum class Category(val legacyLabel: String, @param:StringRes val labelRes: Int, @param:DrawableRes val icon: Int, val color: Color) {
+    STREAMING("Streaming", R.string.cat_streaming, R.drawable.ic_play_circle, Color(0xFFF97316)),
+    PRODUCTIVIDAD("Productividad", R.string.cat_productivity, R.drawable.ic_work, Color(0xFF3B4FD8)),
+    FITNESS("Fitness", R.string.cat_fitness, R.drawable.ic_fitness_center, Color(0xFF22C55E)),
+    MUSICA("Música", R.string.cat_music, R.drawable.ic_headphones, Color(0xFF38BDF8)),
+    DELIVERY("Delivery", R.string.cat_delivery, R.drawable.ic_moped, Color(0xFFFBBF24)),
+    OTROS("Otros", R.string.cat_other, R.drawable.ic_category, Color(0xFF64748B));
+
+    fun label(context: Context): String = context.getString(labelRes)
 }
 
-enum class SubStatus(val label: String, @param:DrawableRes val icon: Int, val container: Color, val content: Color) {
-    ACTIVA("Activa", R.drawable.ic_check_circle_fill, Color(0xFF22C55E), Color(0xFF0F172A)),
-    COBRO_HOY("Cobro hoy", R.drawable.ic_notifications_active_fill, Color(0xFFF97316), Color(0xFF0F172A)),
-    PRONTO("Pronto", R.drawable.ic_schedule_fill, Color(0xFFFBBF24), Color(0xFF0F172A)),
-    SIN_USAR("Sin usar", R.drawable.ic_visibility_off_fill, Color(0xFF64748B), Color.White),
-    CANCELADA("Cancelada", R.drawable.ic_cancel_fill, Color(0xFFEF4444), Color(0xFF0F172A)),
-    PENDIENTE("Pendiente", R.drawable.ic_hourglass_empty_fill, Color(0xFF38BDF8), Color(0xFF0F172A)),
+enum class SubStatus(@param:StringRes val labelRes: Int, @param:DrawableRes val icon: Int, val container: Color, val content: Color) {
+    ACTIVA(R.string.status_active, R.drawable.ic_check_circle_fill, Color(0xFF22C55E), Color(0xFF0F172A)),
+    COBRO_HOY(R.string.status_charge_today, R.drawable.ic_notifications_active_fill, Color(0xFFF97316), Color(0xFF0F172A)),
+    PRONTO(R.string.status_soon, R.drawable.ic_schedule_fill, Color(0xFFFBBF24), Color(0xFF0F172A)),
+    SIN_USAR(R.string.status_unused, R.drawable.ic_visibility_off_fill, Color(0xFF64748B), Color.White),
+    CANCELADA(R.string.status_cancelled, R.drawable.ic_cancel_fill, Color(0xFFEF4444), Color(0xFF0F172A)),
+    PENDIENTE(R.string.status_pending, R.drawable.ic_hourglass_empty_fill, Color(0xFF38BDF8), Color(0xFF0F172A));
+
+    fun label(context: Context): String = context.getString(labelRes)
 }
 
-enum class LeadTime(val label: String, val chip: String, val short: String, val days: Long) {
-    SAME_DAY("El mismo día del cobro", "El mismo día", "el mismo día del cobro", 0),
-    ONE_DAY("1 día antes (24 h)", "24 h antes", "1 día antes (24 h)", 1),
-    THREE_DAYS("3 días antes", "3 días antes", "3 días antes del cobro", 3),
-    SEVEN_DAYS("7 días antes", "7 días antes", "7 días antes del cobro", 7),
+enum class LeadTime(
+    @param:StringRes val labelRes: Int,
+    @param:StringRes val chipRes: Int,
+    @param:StringRes val shortRes: Int,
+    val days: Long,
+) {
+    SAME_DAY(R.string.lead_same_day_label, R.string.lead_same_day_chip, R.string.lead_same_day_short, 0),
+    ONE_DAY(R.string.lead_one_day_label, R.string.lead_one_day_chip, R.string.lead_one_day_short, 1),
+    THREE_DAYS(R.string.lead_three_days_label, R.string.lead_three_days_chip, R.string.lead_three_days_short, 3),
+    SEVEN_DAYS(R.string.lead_seven_days_label, R.string.lead_seven_days_chip, R.string.lead_seven_days_short, 7);
+
+    fun label(context: Context): String = context.getString(labelRes)
+    fun chip(context: Context): String = context.getString(chipRes)
+    fun short(context: Context): String = context.getString(shortRes)
 }
 
-/** Un cobro ya realizado. El monto está en la moneda original. */
+/** A recorded past payment. The amount is in the original currency. */
 data class Payment(
     val date: LocalDate,
     val amount: Double,
@@ -91,7 +109,7 @@ data class Profile(
     val email: String,
     val premium: Boolean,
 ) {
-    val firstName: String get() = name.trim().substringBefore(' ').ifBlank { "Hola" }
+    fun firstName(defaultGreeting: String): String = name.trim().substringBefore(' ').ifBlank { defaultGreeting }
     val initials: String
         get() = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
             .take(2).joinToString("") { it.first().uppercase() }.ifBlank { "CW" }
@@ -133,7 +151,7 @@ data class AppState(
 
     fun pen(sub: Subscription): Double = sub.amount * rates.rate(sub.currency)
 
-    /** Costo mensual equivalente en soles (anual / 12, trimestral / 3). */
+    /** Equivalent monthly cost in soles (annual / 12, quarterly / 3). */
     fun monthlyPen(sub: Subscription): Double = pen(sub) / sub.frequency.months
 
     val monthlyTotal: Double get() = if (backendMode) serverMonthlyTotal ?: Double.NaN else active.sumOf { monthlyPen(it) }

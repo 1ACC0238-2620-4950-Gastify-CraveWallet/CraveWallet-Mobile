@@ -38,17 +38,28 @@ class AppConnectionUiTest {
         }
         server.start()
         try {
-            compose.onNodeWithText("Correo electrónico").performTextInput("ui@example.com")
-            compose.onNodeWithText("Contraseña").performTextInput("Example2026")
-            compose.onNodeWithText("Servidor de pruebas").performTextReplacement(server.url("/").toString())
-            compose.onNodeWithText("Ingresar").performClick()
-            compose.waitUntil(20000) {compose.onAllNodesWithText("Perfil").fetchSemanticsNodes().isNotEmpty()}
-            compose.onNodeWithText("Perfil").performClick()
+            compose.onNodeWithText("Email address").performTextInput("ui@example.com")
+            compose.onNodeWithText("Password").performTextInput("Example2026")
+            compose.onNodeWithText("Test server").performTextReplacement(server.url("/").toString())
+            compose.onAllNodesWithText("Sign in").onLast().performClick()
+            compose.waitUntil(20000) {compose.onAllNodesWithText("Profile").fetchSemanticsNodes().isNotEmpty()}
+            compose.onNodeWithText("Profile").performClick()
             compose.onAllNodesWithText("ui@example.com").onFirst().assertExists()
-            compose.onNodeWithText("Cerrar sesión").performScrollTo().performClick()
-            compose.waitUntil(20000) {compose.onAllNodesWithText("Ingresar").fetchSemanticsNodes().isNotEmpty()}
-            compose.onNodeWithText("Correo electrónico").assertExists()
+            compose.onNodeWithText("Sign out").performScrollTo().performClick()
+            compose.waitUntil(20000) {compose.onAllNodesWithText("Sign in").fetchSemanticsNodes().isNotEmpty()}
+            compose.onNodeWithText("Email address").assertExists()
             Assert.assertTrue(server.requestCount>=6)
         } finally {server.shutdown()}
+    }
+
+    @Test fun registrationRequiresAcceptingTermsAndConditions() {
+        compose.onNodeWithText("Create an account").performScrollTo().performClick()
+        compose.onNodeWithText("Email address").performTextInput("new@example.com")
+        compose.onNodeWithText("Password").performTextInput("Example2026")
+        compose.onNodeWithText("Create account").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Terms and Conditions").performScrollTo().performClick()
+        compose.onNodeWithText("Terms and Conditions of Use").assertExists()
+        compose.onNodeWithText("Accept Terms").performClick()
+        compose.onNodeWithText("Create account").performScrollTo().assertIsEnabled()
     }
 }

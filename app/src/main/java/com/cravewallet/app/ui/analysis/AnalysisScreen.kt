@@ -34,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.cravewallet.app.R
@@ -75,7 +77,7 @@ import java.time.YearMonth
 @Composable
 fun AnalysisScreen(state: AppState, vm: AppViewModel, actions: AppActions, onViewPremium: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        CwTopBar("Análisis", actions = {
+        CwTopBar(stringResource(R.string.analysis_title), actions = {
             if (state.profile.premium) PremiumBadge(Modifier.padding(end = 12.dp))
         })
         when {
@@ -88,10 +90,11 @@ fun AnalysisScreen(state: AppState, vm: AppViewModel, actions: AppActions, onVie
 
 @Composable
 private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewModel) {
+    val context = LocalContext.current
     val online by rememberIsOnline()
     var retrying by remember { mutableStateOf(false) }
     var range by rememberSaveable { mutableStateOf(Range.SEIS_MESES) }
-    val bars = Analytics.bars(state, range)
+    val bars = Analytics.bars(state, range, context = context)
     var selected by rememberSaveable(range) { mutableIntStateOf(bars.lastIndex) }
     val sel = bars.getOrNull(selected)
     val today = LocalDate.now()
@@ -105,16 +108,15 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
         if (!online) {
             InfoBanner(
                 icon = R.drawable.ic_wifi_off,
-                title = "Sin conexión",
-                body = "Mostramos tus datos guardados ${Fmt.relativeDateTime(state.rates.updatedAt)}. " +
-                    "Revisamos el tipo de cambio en cuanto vuelvas a estar en línea.",
+                title = stringResource(R.string.analysis_offline_title),
+                body = stringResource(R.string.analysis_offline_body, Fmt.relativeDateTime(state.rates.updatedAt, context = context)),
                 modifier = Modifier.padding(bottom = 12.dp),
                 actions = {
-                    LinkText(if (retrying) "Reintentando…" else "Reintentar", onClick = {
+                    LinkText(stringResource(if (retrying) R.string.analysis_retrying else R.string.analysis_retry), onClick = {
                         retrying = true
                         vm.refreshRates { ok ->
                             retrying = false
-                            actions.snack(if (ok) "Tipo de cambio actualizado." else "Seguimos sin conexión. Inténtalo en un momento.")
+                            actions.snack(context.getString(if (ok) R.string.analysis_rate_updated_snack else R.string.analysis_still_offline_snack))
                         }
                     })
                 },
@@ -135,12 +137,12 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
                         inactiveContentColor = OnSurface,
                         inactiveBorderColor = Outline,
                     ),
-                    label = { Text(r.label, style = CwType.BodyStrong) },
+                    label = { Text(stringResource(r.labelRes), style = CwType.BodyStrong) },
                 )
             }
         }
 
-        // Total del periodo seleccionado
+        // Selected period total
         Spacer(Modifier.height(16.dp))
         val currentMonth = YearMonth.from(today)
         val periodMonth = sel?.month ?: currentMonth
@@ -150,7 +152,7 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
             color = OnSurfaceVariant,
         )
         val total = if (range == Range.MES) Analytics.monthTotal(state, currentMonth).first else sel?.total ?: 0.0
-        Text(Fmt.pen(if (range == Range.MES) sel?.total ?: 0.0 else total), style = CwType.Amount, color = OnSurface)
+        Text(Fmt.pen(if (range == Range.MES) sel?.total ?: 0.0 else total, context), style = CwType.Amount, color = OnSurface)
         if (range != Range.MES) {
             val prev = periodMonth.minusMonths(1)
             val prevTotal = Analytics.monthTotal(state, prev).first
@@ -159,20 +161,29 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     CwIcon(if (diff >= 0) R.drawable.ic_trending_up else R.drawable.ic_trending_down, size = 18.dp, tint = if (diff > 0) Error else Success)
                     Text(
-                        "${Fmt.pen(kotlin.math.abs(diff))} ${if (diff >= 0) "más" else "menos"} que ${Fmt.monthLong(prev.monthValue)} (${Fmt.pen(prevTotal)})",
+                        stringResource(
+                            if (diff >= 0) R.string.analysis_diff_more else R.string.analysis_diff_less,
+                            Fmt.pen(kotlin.math.abs(diff), context),
+                            Fmt.monthLong(prev.monthValue),
+                            Fmt.pen(prevTotal, context),
+                        ),
                         style = CwType.Body,
                         color = OnSurface,
                     )
                 }
             }
         } else {
-            Text("Total del mes: ${Fmt.pen(total)}", style = CwType.Body, color = OnSurface)
+            Text(stringResource(R.string.analysis_month_total, Fmt.pen(total, context)), style = CwType.Body, color = OnSurface)
         }
 
         Spacer(Modifier.height(16.dp))
         CwCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text(if (range == Range.MES) "Cobros por semana en soles" else "Gasto mensual en soles", style = CwType.BodyStrong, color = OnSurface)
+                Text(
+                    stringResource(if (range == Range.MES) R.string.analysis_chart_weekly else R.string.analysis_chart_monthly),
+                    style = CwType.BodyStrong,
+                    color = OnSurface,
+                )
                 Spacer(Modifier.height(36.dp))
                 BarChart(
                     bars = bars,
@@ -184,31 +195,35 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
         }
         Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             CwIcon(R.drawable.ic_touch_app, size = 16.dp, tint = OnSurfaceVariant)
-            Text(if (range == Range.MES) "Toca una barra para ver esa semana." else "Toca una barra para ver ese mes.", style = CwType.Caption, color = OnSurfaceVariant)
+            Text(
+                stringResource(if (range == Range.MES) R.string.analysis_tap_week else R.string.analysis_tap_month),
+                style = CwType.Caption,
+                color = OnSurfaceVariant,
+            )
         }
 
-        Analytics.insight(state)?.let { insight ->
+        Analytics.insight(state, context)?.let { insight ->
             InfoBanner(
                 icon = R.drawable.ic_insights,
                 iconTint = Primary,
                 container = PrimaryContainer,
                 title = insight.title,
                 body = insight.body,
-                actions = { LinkText("Ver suscripción", onClick = { actions.nav.navigate(Routes.detail(insight.subscriptionId)) }) },
+                actions = { LinkText(stringResource(R.string.analysis_view_subscription), onClick = { actions.nav.navigate(Routes.detail(insight.subscriptionId)) }) },
             )
         }
 
-        SectionHeader("Por categoría", modifier = Modifier.padding(top = 8.dp))
+        SectionHeader(stringResource(R.string.home_section_by_category), modifier = Modifier.padding(top = 8.dp))
         val shares = Analytics.categories(state)
         CwCard(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                DonutChart(shares, centerLabel = "al mes", centerValue = Fmt.pen(state.monthlyTotal))
+                DonutChart(shares, centerLabel = stringResource(R.string.analysis_donut_center_label), centerValue = Fmt.pen(state.monthlyTotal, context))
                 Spacer(Modifier.width(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     shares.forEach { s ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(Modifier.size(10.dp).clip(CircleShape).background(s.category.color))
-                            Text("${s.category.label} · ${Fmt.percent(s.share)}", style = CwType.Caption, color = OnSurface)
+                            Text("${stringResource(s.category.labelRes)} · ${Fmt.percent(s.share)}", style = CwType.Caption, color = OnSurface)
                         }
                     }
                 }
@@ -216,6 +231,10 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
         }
         Spacer(Modifier.height(8.dp))
         shares.forEach { s ->
+            val countText = stringResource(
+                if (s.subscriptions.size == 1) R.string.analysis_subs_count_one else R.string.analysis_subs_count_many,
+                s.subscriptions.size,
+            )
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -227,10 +246,10 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
             ) {
                 CategoryIcon(s.category)
                 Column(Modifier.weight(1f)) {
-                    Text(s.category.label, style = CwType.BodyStrong, color = OnSurface)
-                    Text("${s.subscriptions.size} ${if (s.subscriptions.size == 1) "suscripción" else "suscripciones"} · ${Fmt.percent(s.share)}", style = CwType.Caption, color = OnSurfaceVariant)
+                    Text(stringResource(s.category.labelRes), style = CwType.BodyStrong, color = OnSurface)
+                    Text("$countText · ${Fmt.percent(s.share)}", style = CwType.Caption, color = OnSurfaceVariant)
                 }
-                Text(Fmt.pen(s.total), style = CwType.BodyStrong, color = OnSurface)
+                Text(Fmt.pen(s.total, context), style = CwType.BodyStrong, color = OnSurface)
                 CwIcon(R.drawable.ic_chevron_right, tint = OnSurfaceVariant)
             }
         }
@@ -238,8 +257,7 @@ private fun AnalysisContent(state: AppState, actions: AppActions, vm: AppViewMod
     }
 }
 
-
-/** N4 · Sin datos para analizar. */
+/** N4 · No data to analyze. */
 @Composable
 private fun EmptyAnalysis(actions: AppActions) {
     Column(
@@ -255,29 +273,35 @@ private fun EmptyAnalysis(actions: AppActions) {
         Spacer(Modifier.height(32.dp))
         EmptyState(
             icon = R.drawable.ic_bar_chart,
-            title = "Aún no hay datos para analizar",
-            body = "Registra al menos un mes de gastos para ver tu análisis.",
+            title = stringResource(R.string.analysis_empty_title),
+            body = stringResource(R.string.analysis_empty_body),
             action = {
-                PrimaryButton("Ir a Gastos", onClick = { actions.goTab(Routes.expenses()) }, icon = R.drawable.ic_receipt_long, modifier = Modifier.width(220.dp))
+                PrimaryButton(
+                    stringResource(R.string.analysis_empty_cta),
+                    onClick = { actions.goTab(Routes.expenses()) },
+                    icon = R.drawable.ic_receipt_long,
+                    modifier = Modifier.width(220.dp),
+                )
             },
         )
     }
 }
 
-/** N5 · Análisis solo para Premium: vista previa desenfocada + tarjeta con beneficios. */
+/** N5 · Analysis is Premium-only: blurred preview + benefits card. */
 @Composable
 private fun LockedAnalysis(state: AppState, vm: AppViewModel, actions: AppActions, onViewPremium: () -> Unit) {
+    val context = LocalContext.current
     val busy by vm.busy.collectAsStateWithLifecycle()
     val pending = state.premiumStatus?.pending == true
     Box(Modifier.fillMaxSize().padding(16.dp)) {
-        // Vista previa desenfocada (en Android < 12 se atenúa en lugar de desenfocar)
+        // Blurred preview (on Android < 12 dimmed instead of blurred)
         val preview = Modifier
             .fillMaxWidth()
             .then(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(10.dp) else Modifier.alpha(0.25f))
         Column(preview) {
             CwCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    val demo = Analytics.bars(com.cravewallet.app.data.SeedData.state(), Range.SEIS_MESES)
+                    val demo = Analytics.bars(com.cravewallet.app.data.SeedData.state(), Range.SEIS_MESES, context = context)
                     BarChart(demo, demo.lastIndex, onSelect = {}, showTooltip = false)
                 }
             }
@@ -286,27 +310,31 @@ private fun LockedAnalysis(state: AppState, vm: AppViewModel, actions: AppAction
             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 DialogIcon(R.drawable.ic_lock_fill, tint = OnSurface, background = SurfaceVariant)
                 Spacer(Modifier.height(12.dp))
-                Text("Análisis es parte de Premium", style = CwType.Heading, color = OnSurface, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.analysis_locked_title), style = CwType.Heading, color = OnSurface, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(12.dp))
                 Column(Modifier.fillMaxWidth()) {
-                    CheckItem("Gasto mensual y por categoría en soles")
-                    CheckItem("Mapa de calor de tus suscripciones")
-                    CheckItem("Suscripciones sin límite (hoy: ${state.active.size} de 5)")
+                    CheckItem(stringResource(R.string.analysis_locked_benefit_1))
+                    CheckItem(stringResource(R.string.analysis_locked_benefit_2))
+                    CheckItem(stringResource(R.string.analysis_locked_benefit_3, state.active.size, AppState.FREE_PLAN_LIMIT))
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (pending) "Estamos esperando la confirmación de Mercado Pago."
-                    else "${Fmt.pen(state.premiumPrice)} al mes. Cancela cuando quieras.",
-                    style = CwType.Caption, color = OnSurfaceVariant, textAlign = TextAlign.Center,
+                    if (pending) stringResource(R.string.analysis_locked_pending)
+                    else stringResource(R.string.analysis_locked_price, Fmt.pen(state.premiumPrice, context)),
+                    style = CwType.Caption,
+                    color = OnSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
                 PrimaryButton(
-                    if (pending) "Continuar pago" else "Ver Premium",
+                    stringResource(if (pending) R.string.analysis_locked_continue_pay else R.string.analysis_locked_view_premium),
                     onClick = onViewPremium,
-                    icon = R.drawable.ic_workspace_premium, modifier = Modifier.fillMaxWidth(), enabled = !busy,
+                    icon = R.drawable.ic_workspace_premium,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !busy,
                 )
-                if (pending) CwTextButton("Actualizar estado", onClick = { if (!busy) vm.refreshPremium() })
-                CwTextButton("Ahora no", onClick = { actions.goTab(Routes.HOME) })
+                if (pending) CwTextButton(stringResource(R.string.analysis_locked_refresh), onClick = { if (!busy) vm.refreshPremium() })
+                CwTextButton(stringResource(R.string.common_not_now), onClick = { actions.goTab(Routes.HOME) })
             }
         }
     }

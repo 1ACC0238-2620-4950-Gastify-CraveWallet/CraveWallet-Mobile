@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -88,7 +89,7 @@ private fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-/** P2–P9 · Recordatorios: canales, anticipación, hora y próximos avisos. */
+/** P2–P9 · Reminders: channels, lead time, time of day, and upcoming reminders. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
@@ -106,7 +107,7 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
     var leaveDialog by remember { mutableStateOf(false) }
     val dirty = draft != saved
 
-    // Al volver de Ajustes del sistema, revisar de nuevo los permisos
+    // When returning from system Settings, re-check permissions
     LifecycleResumeEffect(Unit) {
         notificationsAllowed = Notifications.areEnabled(context)
         calendarAllowed = CalendarHelper.hasPermission(context)
@@ -125,13 +126,13 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             val canAskAgain = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && activity != null &&
                 ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
             if (!canAskAgain) blocked = true
-            else actions.snack("Sin permiso no podemos enviarte avisos push.")
+            else actions.snack(context.getString(R.string.reminders_no_push_perm_snack))
         }
     }
     val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         calendarAllowed = result.values.all { it }
         if (calendarAllowed) draft = draft.copy(calendarEnabled = true)
-        else actions.snack("Sin acceso al calendario. Te avisaremos solo por notificación.")
+        else actions.snack(context.getString(R.string.reminders_no_cal_perm_snack))
     }
 
     fun setPush(on: Boolean) {
@@ -140,7 +141,7 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
         when {
             notificationsAllowed -> draft = draft.copy(pushEnabled = true)
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !Notifications.hasPermission(context) -> pushDialog = true
-            else -> blocked = true // permiso concedido pero notificaciones apagadas en Ajustes
+            else -> blocked = true // permission granted but notifications disabled in system Settings
         }
     }
 
@@ -160,9 +161,9 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
         vm.saveReminders(draft)
         justSaved = true
         val lead = draft.leadTime
-        val text = if (lead == LeadTime.SAME_DAY) "Listo. Te avisaremos el mismo día de cada cobro."
-        else "Listo. Te avisaremos ${lead.label.substringBefore(" (").lowercase()} de cada cobro."
-        actions.snack(text, "Deshacer") {
+        val text = if (lead == LeadTime.SAME_DAY) context.getString(R.string.reminders_saved_same_day_snack)
+        else context.getString(R.string.reminders_saved_lead_snack, lead.label(context).substringBefore(" (").lowercase())
+        actions.snack(text, context.getString(R.string.common_undo)) {
             vm.saveReminders(previous)
             draft = previous
             justSaved = false
@@ -172,7 +173,7 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
     BackHandler(enabled = dirty) { leaveDialog = true }
 
     Column(Modifier.fillMaxSize()) {
-        CwTopBar("Recordatorios", onBack = { if (dirty) leaveDialog = true else actions.back() })
+        CwTopBar(stringResource(R.string.reminders_title), onBack = { if (dirty) leaveDialog = true else actions.back() })
         Column(
             Modifier
                 .weight(1f)
@@ -180,7 +181,7 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                 .padding(horizontal = 16.dp),
         ) {
             Text(
-                "Te avisamos antes de cada cobro para que decidas a tiempo si lo pagas o lo cancelas.",
+                stringResource(R.string.reminders_intro),
                 style = CwType.Body,
                 color = OnSurface,
             )
@@ -188,28 +189,28 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             if (blocked && !notificationsAllowed) {
                 InfoBanner(
                     icon = R.drawable.ic_notifications_off,
-                    title = "Las notificaciones están bloqueadas",
-                    body = "Actívalas en los ajustes del teléfono para recibir avisos push." +
-                        if (draft.calendarEnabled) " El evento en tu calendario sigue activo." else "",
+                    title = stringResource(R.string.reminders_blocked_title),
+                    body = stringResource(R.string.reminders_blocked_body) +
+                        if (draft.calendarEnabled) stringResource(R.string.reminders_blocked_cal_active_suffix) else "",
                     container = Warning.copy(alpha = 0.25f),
                     modifier = Modifier.padding(top = 12.dp),
                     actions = {
-                        LinkText("Abrir ajustes", onClick = ::openNotificationSettings)
-                        LinkText("Ahora no", onClick = { blocked = false })
+                        LinkText(stringResource(R.string.reminders_open_settings), onClick = ::openNotificationSettings)
+                        LinkText(stringResource(R.string.common_not_now), onClick = { blocked = false })
                     },
                 )
             }
 
-            Label("Canales")
+            Label(stringResource(R.string.reminders_group_channels))
             CwCard(Modifier.fillMaxWidth()) {
                 val calendarInfo = remember(calendarAllowed) { CalendarHelper.primaryCalendar(context) }
                 ListRow(
-                    "Evento en calendario",
+                    stringResource(R.string.reminders_cal_row_title),
                     subtitle = when {
-                        !calendarAllowed -> "Sin acceso al calendario del teléfono"
-                        calendarInfo != null && calendarInfo.account == calendarInfo.name -> "${calendarInfo.name} · en este teléfono"
-                        calendarInfo != null -> "${calendarInfo.name.ifBlank { "Calendario" }} · ${calendarInfo.account}"
-                        else -> "Crearemos el calendario «CraveWallet» en este teléfono"
+                        !calendarAllowed -> stringResource(R.string.reminders_cal_no_access)
+                        calendarInfo != null && calendarInfo.account == calendarInfo.name -> stringResource(R.string.reminders_cal_on_this_phone, calendarInfo.name)
+                        calendarInfo != null -> "${calendarInfo.name.ifBlank { stringResource(R.string.reminders_cal_default_name) }} · ${calendarInfo.account}"
+                        else -> stringResource(R.string.reminders_cal_will_create)
                     },
                     icon = R.drawable.ic_calendar_month,
                     onClick = { setCalendar(!draft.calendarEnabled) },
@@ -217,11 +218,11 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                 )
                 RowDivider()
                 ListRow(
-                    "Notificación push",
+                    stringResource(R.string.reminders_push_row_title),
                     subtitle = when {
-                        !notificationsAllowed && blocked -> "Bloqueada en los ajustes del teléfono"
-                        draft.pushEnabled && notificationsAllowed -> "Activada en este teléfono"
-                        else -> "Desactivada"
+                        !notificationsAllowed && blocked -> stringResource(R.string.reminders_push_blocked_sub)
+                        draft.pushEnabled && notificationsAllowed -> stringResource(R.string.reminders_push_active_sub)
+                        else -> stringResource(R.string.reminders_push_inactive_sub)
                     },
                     icon = if (draft.pushEnabled && notificationsAllowed) R.drawable.ic_notifications_active else R.drawable.ic_notifications_off,
                     onClick = { setPush(!draft.pushEnabled) },
@@ -229,18 +230,18 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                 )
             }
 
-            Label("Anticipación")
+            Label(stringResource(R.string.reminders_group_lead))
             CwCard(Modifier.fillMaxWidth()) {
-                ListRow("¿Cuándo avisarte?", subtitle = draft.leadTime.short, icon = R.drawable.ic_alarm, onClick = { leadSheet = true })
+                ListRow(stringResource(R.string.reminders_when_row_title), subtitle = stringResource(draft.leadTime.shortRes), icon = R.drawable.ic_alarm, onClick = { leadSheet = true })
                 RowDivider()
-                ListRow("Hora del aviso", subtitle = Fmt.time(draft.hour, draft.minute), icon = R.drawable.ic_schedule, onClick = { timeDialog = true })
+                ListRow(stringResource(R.string.reminders_time_row_title), subtitle = Fmt.time(draft.hour, draft.minute, context), icon = R.drawable.ic_schedule, onClick = { timeDialog = true })
             }
 
             val upcoming = ReminderPlanner.upcoming(state.copy(reminders = draft))
-            Label("Próximos avisos (${upcoming.size})")
+            Label(stringResource(R.string.reminders_group_upcoming, upcoming.size))
             CwCard(Modifier.fillMaxWidth()) {
                 if (upcoming.isEmpty()) {
-                    Text("No tienes suscripciones activas.", style = CwType.Body, color = OnSurfaceVariant, modifier = Modifier.padding(16.dp))
+                    Text(stringResource(R.string.reminders_empty_active), style = CwType.Body, color = OnSurfaceVariant, modifier = Modifier.padding(16.dp))
                 }
                 upcoming.forEachIndexed { i, u ->
                     if (i > 0) RowDivider()
@@ -260,15 +261,15 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                             Text(u.subscription.name, style = CwType.BodyStrong, color = OnSurface)
                             val past = u.at.isBefore(java.time.LocalDateTime.now())
                             Text(
-                                if (past) "El aviso era el ${Fmt.shortWeekday(u.at.toLocalDate())}: ya pasó"
-                                else "Aviso ${Fmt.shortWeekday(u.at.toLocalDate())}, ${Fmt.time(u.at.hour, u.at.minute)}",
+                                if (past) stringResource(R.string.reminders_item_past, Fmt.shortWeekday(u.at.toLocalDate()))
+                                else stringResource(R.string.reminders_item_upcoming, Fmt.shortWeekday(u.at.toLocalDate()), Fmt.time(u.at.hour, u.at.minute, context)),
                                 style = CwType.Caption,
                                 color = OnSurfaceVariant,
                             )
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(Fmt.pen(state.pen(u.subscription)), style = CwType.BodyStrong, color = OnSurface)
-                            Text("cobro ${Fmt.dayMonth(u.subscription.nextCharge)}", style = CwType.Caption, color = OnSurfaceVariant)
+                            Text(Fmt.pen(state.pen(u.subscription), context), style = CwType.BodyStrong, color = OnSurface)
+                            Text(stringResource(R.string.reminders_item_charge_date, Fmt.dayMonth(u.subscription.nextCharge)), style = CwType.Caption, color = OnSurfaceVariant)
                         }
                     }
                 }
@@ -279,7 +280,7 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
         Column(Modifier.background(Surface)) {
             HorizontalDivider(color = OutlineVariant)
             PrimaryButton(
-                text = if (justSaved && !dirty) "Cambios guardados" else "Guardar cambios",
+                text = stringResource(if (justSaved && !dirty) R.string.reminders_btn_saved else R.string.reminders_btn_save),
                 icon = if (justSaved && !dirty) R.drawable.ic_check else null,
                 onClick = ::save,
                 enabled = dirty,
@@ -296,16 +297,16 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             containerColor = Surface,
             shape = RoundedCornerShape(24.dp),
             icon = { DialogIcon(R.drawable.ic_notifications) },
-            title = { Text("¿Permitir que CraveWallet te envíe notificaciones?", style = CwType.Heading, color = OnSurface, textAlign = TextAlign.Center) },
-            text = { Text("Te avisaremos antes de cada cobro, aunque no abras tu calendario.", style = CwType.Body, color = OnSurface, textAlign = TextAlign.Center) },
+            title = { Text(stringResource(R.string.reminders_push_perm_title), style = CwType.Heading, color = OnSurface, textAlign = TextAlign.Center) },
+            text = { Text(stringResource(R.string.reminders_push_perm_body), style = CwType.Body, color = OnSurface, textAlign = TextAlign.Center) },
             confirmButton = {
                 Column(Modifier.fillMaxWidth()) {
-                    PrimaryButton("Permitir", height = 48.dp, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth(), onClick = {
+                    PrimaryButton(stringResource(R.string.common_allow), height = 48.dp, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth(), onClick = {
                         pushDialog = false
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     })
                     Spacer(Modifier.height(8.dp))
-                    SecondaryButton("No permitir", height = 48.dp, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth(), onClick = { pushDialog = false })
+                    SecondaryButton(stringResource(R.string.reminders_push_perm_deny), height = 48.dp, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth(), onClick = { pushDialog = false })
                 }
             },
         )
@@ -335,7 +336,7 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
             onDismissRequest = { timeDialog = false },
             containerColor = Surface,
             shape = RoundedCornerShape(24.dp),
-            title = { Text("Hora del aviso", style = CwType.Heading, color = OnSurface) },
+            title = { Text(stringResource(R.string.reminders_time_row_title), style = CwType.Heading, color = OnSurface) },
             text = {
                 TimePicker(
                     state = timeState,
@@ -347,22 +348,22 @@ fun RemindersScreen(state: AppState, vm: AppViewModel, actions: AppActions) {
                 )
             },
             confirmButton = {
-                CwTextButton("Aceptar", color = Primary, onClick = {
+                CwTextButton(stringResource(R.string.common_accept), color = Primary, onClick = {
                     draft = draft.copy(hour = timeState.hour, minute = timeState.minute)
                     justSaved = false
                     timeDialog = false
                 })
             },
-            dismissButton = { CwTextButton("Cancelar", onClick = { timeDialog = false }) },
+            dismissButton = { CwTextButton(stringResource(R.string.common_cancel), onClick = { timeDialog = false }) },
         )
     }
 
     if (leaveDialog) {
         ConfirmDialog(
-            title = "¿Salir sin guardar?",
-            body = "Tienes cambios en tus recordatorios que todavía no guardaste.",
-            confirm = "Salir sin guardar",
-            dismiss = "Seguir aquí",
+            title = stringResource(R.string.reminders_leave_title),
+            body = stringResource(R.string.reminders_leave_body),
+            confirm = stringResource(R.string.reminders_leave_confirm),
+            dismiss = stringResource(R.string.reminders_leave_stay),
             onConfirm = { leaveDialog = false; draft = saved; actions.back() },
             onDismiss = { leaveDialog = false },
         )
@@ -374,14 +375,14 @@ private fun Label(text: String) {
     Text(text, style = CwType.Body, color = OnSurfaceVariant, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
 }
 
-/** P5 / P6 · Elegir la anticipación. */
+/** P5 / P6 · Choose lead time. */
 @Composable
 private fun LeadTimeSheet(current: LeadTime, onApply: (LeadTime) -> Unit, onDismiss: () -> Unit) {
     var choice by remember { mutableStateOf(current) }
     SheetOverlay(onDismissRequest = onDismiss, fullHeight = false) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 16.dp)) {
-            Text("¿Cuándo avisarte?", style = CwType.Title, color = OnSurface)
-            Text("Aplica a todas tus suscripciones activas.", style = CwType.Caption, color = OnSurfaceVariant)
+            Text(stringResource(R.string.reminders_when_row_title), style = CwType.Title, color = OnSurface)
+            Text(stringResource(R.string.reminders_lead_sheet_subtitle), style = CwType.Caption, color = OnSurfaceVariant)
             Spacer(Modifier.height(12.dp))
             LeadTime.entries.forEach { option ->
                 Row(
@@ -391,7 +392,7 @@ private fun LeadTimeSheet(current: LeadTime, onApply: (LeadTime) -> Unit, onDism
                         .clickable(role = Role.RadioButton) { choice = option },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(option.label, style = CwType.Body, color = OnSurface, modifier = Modifier.weight(1f))
+                    Text(stringResource(option.labelRes), style = CwType.Body, color = OnSurface, modifier = Modifier.weight(1f))
                     RadioButton(
                         selected = choice == option,
                         onClick = { choice = option },
@@ -400,11 +401,11 @@ private fun LeadTimeSheet(current: LeadTime, onApply: (LeadTime) -> Unit, onDism
                 }
             }
             Spacer(Modifier.height(8.dp))
-            InfoBanner(icon = R.drawable.ic_info, body = "Para cobros en dólares, 3 días te dan tiempo de revisar tu saldo.")
+            InfoBanner(icon = R.drawable.ic_info, body = stringResource(R.string.reminders_lead_sheet_tip))
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SecondaryButton("Cancelar", onClick = onDismiss, modifier = Modifier.weight(1f))
-                PrimaryButton("Aplicar", onClick = { onApply(choice) }, modifier = Modifier.weight(1f))
+                SecondaryButton(stringResource(R.string.common_cancel), onClick = onDismiss, modifier = Modifier.weight(1f))
+                PrimaryButton(stringResource(R.string.common_apply), onClick = { onApply(choice) }, modifier = Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
         }

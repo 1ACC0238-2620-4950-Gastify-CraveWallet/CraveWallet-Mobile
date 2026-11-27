@@ -23,7 +23,7 @@ import com.cravewallet.app.reminders.ReminderScheduler
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDateTime
 
-/** Acciones de la app. Cada cambio de datos mantiene sincronizados los avisos push y el calendario. */
+/** App actions. Each data change keeps push alerts and calendar events synchronized. */
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = (app as CraveApplication).repository
@@ -45,7 +45,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _busy.value=true; _error.value=null
                 try { block() }
                 catch(e: CancellationException) { throw e }
-                catch(e: Exception) { repo.checkSession(); _error.value=e.message ?: "No se pudo conectar. Comprueba el servidor e inténtalo nuevamente." }
+                catch(e: Exception) { repo.checkSession(); _error.value=e.message ?: context.getString(R.string.err_connection_default) }
                 finally { _busy.value=false }
             }
         }
@@ -66,7 +66,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val created=save(saved,lead,calendar)
         if(connected) {
             // The mutation is confirmed; failed totals refresh must not turn it into a false failed save.
-            try {repo.refresh()} catch(e:CancellationException) {throw e} catch(e:Exception) {_error.value="Guardado. No se pudo actualizar el resumen; pulsa Actualizar."}
+            try {repo.refresh()} catch(e:CancellationException) {throw e} catch(e:Exception) {_error.value=context.getString(R.string.err_saved_refresh_failed)}
         }
         onSuccess(created)
     }
@@ -75,7 +75,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if(connected) repo.cancelRemote(id) else setCancelled(id,true)
         CalendarHelper.deleteEvent(context,previousEvent)
         ReminderScheduler.cancel(context,id)
-        if(connected) { try {repo.refresh()} catch(e:CancellationException) {throw e} catch(e:Exception) {_error.value="Cancelada. No se pudo actualizar el resumen."} }
+        if(connected) { try {repo.refresh()} catch(e:CancellationException) {throw e} catch(e:Exception) {_error.value=context.getString(R.string.err_cancelled_refresh_failed)} }
         onSuccess()
     }
     private suspend fun backendRequest(method:String,path:String,body:org.json.JSONObject?=null):org.json.JSONObject {
@@ -98,9 +98,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         get() = repo.current.profile.premium || repo.current.active.size < AppState.FREE_PLAN_LIMIT
 
     /**
-     * Guarda una suscripción nueva o editada.
-     * @param addToCalendar crea el evento en el calendario (requiere permiso ya concedido).
-     * @return true si el evento de calendario se creó.
+     * Saves a new or edited subscription.
+     * @param addToCalendar creates the event in the calendar (requires permission already granted).
+     * @return true if the calendar event was created.
      */
     private fun save(sub: Subscription, lead: LeadTime?, addToCalendar: Boolean): Boolean {
         val previous = repo.subscription(sub.id)
@@ -110,7 +110,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (addToCalendar && CalendarHelper.hasPermission(context)) {
             val state = repo.current
             val at = ReminderPlanner.reminderTime(toSave, state.reminders)
-            val eventId = CalendarHelper.insertEvent(context, toSave, Fmt.pen(state.pen(toSave)), at)
+            val eventId = CalendarHelper.insertEvent(context, toSave, Fmt.pen(state.pen(toSave), context), at)
             if (eventId != null) {
                 toSave = toSave.copy(calendarEventId = eventId)
                 created = true
@@ -121,7 +121,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return created
     }
 
-    /** Deshace un alta: borra la suscripción y su evento. */
+    /** Undoes an addition: deletes the subscription and its event. */
     fun undoAdd(id: String) {
         val sub = repo.subscription(id) ?: return
         CalendarHelper.deleteEvent(context, sub.calendarEventId)
@@ -135,7 +135,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun delete(id: String) {
-        if(connected) { _error.value="La eliminación no está disponible. Puedes cancelar la suscripción para conservar su registro."; return }
+        if(connected) { _error.value=context.getString(R.string.err_delete_unavailable_remote); return }
         val sub = repo.subscription(id) ?: return
         CalendarHelper.deleteEvent(context, sub.calendarEventId)
         ReminderScheduler.cancel(context, id)
@@ -145,7 +145,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setUnused(id: String, unused: Boolean) = repo.setUnused(id, unused)
 
     fun setCancelled(id: String, cancelled: Boolean) {
-        if(connected) { if(cancelled) cancel(id) {} else _error.value="La reactivación no está disponible en el servidor."; return }
+        if(connected) { if(cancelled) cancel(id) {} else _error.value=context.getString(R.string.err_reactivate_unavailable_remote); return }
         val sub = repo.subscription(id) ?: return
         if (cancelled) {
             CalendarHelper.deleteEvent(context, sub.calendarEventId)
@@ -158,8 +158,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Guarda los ajustes de recordatorios. La anticipación elegida aquí aplica a todas las suscripciones
-     * activas, y los eventos de calendario se crean, mueven o borran según corresponda.
+     * Saves reminder settings. The lead time chosen here applies to all active subscriptions,
+     * and calendar events are created, moved, or deleted accordingly.
      */
     fun saveReminders(settings: ReminderSettings) {
         val previous = repo.current.reminders
@@ -176,7 +176,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     CalendarHelper.deleteEvent(context, sub.calendarEventId)
                     val state = repo.current
                     val at = ReminderPlanner.reminderTime(base, settings)
-                    base.copy(calendarEventId = CalendarHelper.insertEvent(context, base, Fmt.pen(state.pen(base)), at))
+                    base.copy(calendarEventId = CalendarHelper.insertEvent(context, base, Fmt.pen(state.pen(base), context), at))
                 }
                 else -> base
             }
@@ -203,11 +203,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         onSuccess()
     }
 
-    fun setProfile(profile: Profile) { if(connected) _error.value="La edición de nombre y correo aún no está disponible." else repo.setProfile(profile) }
+    fun setProfile(profile: Profile) { if(connected) _error.value=context.getString(R.string.err_profile_edit_unavailable) else repo.setProfile(profile) }
 
     fun setUsdRate(rate: Double) { if(!connected) repo.setRates(repo.current.rates.copy(usd=rate,updatedAt=LocalDateTime.now())) }
 
-    /** Descarga el tipo de cambio del día. Si no hay conexión, se mantiene el último guardado. */
+    /** Downloads today's exchange rate. If offline, keeps the last saved rate. */
     fun refreshRates(onResult: (Boolean) -> Unit = {}) {
         if(connected) {
             operation {
